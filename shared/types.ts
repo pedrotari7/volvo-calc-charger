@@ -121,6 +121,7 @@ export interface CarState {
 	service: Timed<{ status: string; distanceKm: number | null; days: number | null }> | null;
 	odometerKm: Timed<number> | null;
 	location: Timed<{ lat: number; lng: number }> | null;
+	trips: Timed<Record<string, number>> | null;
 	updatedAt: IsoUtc;
 }
 
