@@ -32,20 +32,19 @@ const flatDays = (): Record<string, PriceDay> => ({
 	'2026-11-03': priceDay('2026-11-03', flat),
 	'2026-11-04': priceDay('2026-11-04', flat),
 });
-const noPeaks: MonthPeaks = { month: '2026-11', top3: [], estimatedFee: 0, final: false };
-const peaksOf = (kws: number[]): MonthPeaks => {
+/** Peaks for `month` built from an old session on the 1st of that month. */
+const peaksOf = (kws: number[], month = '2026-11'): Record<string, MonthPeaks> => {
+	const first = Date.parse(`${month}-01T00:00:00.000Z`);
 	const s: Session = {
 		id: 'old',
-		startUtc: '2026-11-01T00:00:00.000Z',
-		endUtc: '2026-11-01T03:00:00.000Z',
+		startUtc: new Date(first).toISOString(),
+		endUtc: new Date(first + kws.length * HOUR).toISOString(),
 		kWh: kws.reduce((a, b) => a + b, 0),
-		hours: kws.map((kWh, i) => ({
-			hourStartUtc: new Date(Date.parse('2026-11-01T00:00:00.000Z') + i * HOUR).toISOString(),
-			kWh,
-		})),
+		hours: kws.map((kWh, i) => ({ hourStartUtc: new Date(first + i * HOUR).toISOString(), kWh })),
 	};
-	return computeMonthPeaks('2026-11', [s], TEST_TARIFF);
+	return { [month]: computeMonthPeaks(month, [s], TEST_TARIFF) };
 };
+const perKw = 45.216 * 1.25;
 
 const NOW = '2026-11-03T17:00:00.000Z'; // 18:00 local, Tuesday
 const plan = (o: {
@@ -53,7 +52,7 @@ const plan = (o: {
 	batteryPercent?: number;
 	settings?: Partial<Settings>;
 	days?: Record<string, PriceDay>;
-	peaks?: MonthPeaks;
+	peaksByMonth?: Record<string, MonthPeaks>;
 }) =>
 	planTonight({
 		nowUtc: o.nowUtc ?? NOW,
@@ -61,7 +60,7 @@ const plan = (o: {
 		settings: { ...DEFAULT_SETTINGS, ...o.settings },
 		days: o.days ?? flatDays(),
 		tariffs: [TEST_TARIFF],
-		peaks: o.peaks ?? noPeaks,
+		peaksByMonth: o.peaksByMonth ?? {},
 	});
 
 const hoursOf = (c: PlanCandidate) => (Date.parse(c.end) - Date.parse(c.start)) / HOUR;
@@ -94,23 +93,23 @@ describe('planTonight', () => {
 		// all five hours in low load: 15 kWh × (1 + 0.05 + 0.0736 + 0.36) × 1.25
 		expect(r.energyCost).toBeCloseTo(15 * 1.4836 * 1.25, 6);
 		// 3 × 3.7 kW added to empty peaks
-		expect(r.peakIncrease).toBeCloseTo((11.1 / 3) * 45.216 * 1.25, 6);
+		expect(r.peakIncrease).toBeCloseTo((11.1 / 3) * perKw, 6);
 		expect(r.start).toBe('2026-11-03T21:00:00.000Z');
 	});
 
 	it('flat price, peaks [10,10,10]: 11 kW would raise the peak, so reduced kW wins', () => {
 		// Brief expected kw 11 here, but an 11 kWh hour beats a 10 kW peak: +1/3 kW × 45.216 × 1.25.
 		// The tie case the brief describes is pinned with peaks [11,11,11] below.
-		const p = plan({ peaks: peaksOf([10, 10, 10]) });
+		const p = plan({ peaksByMonth: peaksOf([10, 10, 10]) });
 		expect(p.recommendation!.kw).toBe(3.7);
 		expect(p.recommendation!.peakIncrease).toBe(0);
 		expect(p.alternative!.kw).toBe(11);
 		expect(p.alternative!.start).toBe('2026-11-03T21:00:00.000Z');
-		expect(p.alternative!.peakIncrease).toBeCloseTo((1 / 3) * 45.216 * 1.25, 6);
+		expect(p.alternative!.peakIncrease).toBeCloseTo((1 / 3) * perKw, 6);
 	});
 
 	it('flat price, peaks [11,11,11]: tie on cost goes to higher kW, first low-load start', () => {
-		const p = plan({ peaks: peaksOf([11, 11, 11]) });
+		const p = plan({ peaksByMonth: peaksOf([11, 11, 11]) });
 		const r = p.recommendation!;
 		expect(r.kw).toBe(11);
 		expect(r.peakIncrease).toBe(0);
@@ -124,7 +123,7 @@ describe('planTonight', () => {
 		const cheap = (h: number) => (h >= 2 && h < 4 ? 0.2 : 1);
 		const p = plan({
 			days: { '2026-11-03': priceDay('2026-11-03', cheap), '2026-11-04': priceDay('2026-11-04', cheap) },
-			peaks: peaksOf([11, 11, 11]),
+			peaksByMonth: peaksOf([11, 11, 11]),
 		});
 		const r = p.recommendation!;
 		expect(r.kw).toBe(11);
@@ -170,39 +169,93 @@ describe('planTonight', () => {
 		expect(a.end).toBe('2026-11-03T23:00:00.000Z');
 	});
 
-	it('charges now when no prices are known at all', () => {
+	it('makes no plan, and does not charge now, when it would fit but no prices are known', () => {
 		const p = plan({ days: {} });
-		expect(p.chargeNow).toBe(true);
+		expect(p.chargeNow).toBe(false);
 		expect(p.basis).toBe('today');
+		expect(p.recommendation).toBeNull();
+		expect(p.alternative).toBeNull();
+	});
+
+	it('charges now on lack of time even when prices are missing', () => {
+		const p = plan({ batteryPercent: 5, settings: { chargerMaxKw: 3 }, days: {} });
+		expect(p.chargeNow).toBe(true);
 		expect(p.recommendation).toBeNull();
 	});
 
 	it('starts at the next whole hour when now is past 18:00', () => {
-		const p = plan({ nowUtc: '2026-11-03T20:30:00.000Z', peaks: peaksOf([11, 11, 11]) });
+		// Cheapest from 21:00 local (20:00Z), which is before now: the first allowed start is 21:00Z.
+		const cheap = (h: number) => (h >= 21 ? 0.1 : 1);
+		const p = plan({
+			nowUtc: '2026-11-03T20:30:00.000Z',
+			days: { '2026-11-03': priceDay('2026-11-03', cheap), '2026-11-04': priceDay('2026-11-04', flat) },
+			peaksByMonth: peaksOf([11, 11, 11]),
+		});
 		const r = p.recommendation!;
-		expect(Date.parse(r.start)).toBeGreaterThanOrEqual(Date.parse('2026-11-03T21:00:00.000Z'));
+		expect(r.kw).toBe(11);
 		expect(r.start).toBe('2026-11-03T21:00:00.000Z');
+		expect(r.end).toBe('2026-11-03T23:00:00.000Z');
 	});
 
 	it('starts at 18:00 local when called during the day', () => {
+		// Daytime and 18:00 local are cheapest: a window starting at now would pick a daytime hour.
+		const cheap = (h: number) => (h < 19 ? -1 : 1);
 		const p = plan({
 			nowUtc: '2026-11-03T09:12:00.000Z',
 			batteryPercent: 5,
 			settings: { chargerMaxKw: 11, reducedKw: 11 },
+			days: { '2026-11-03': priceDay('2026-11-03', cheap), '2026-11-04': priceDay('2026-11-04', flat) },
 		});
 		// 62.5 kWh at 11 kW = 6 hours; window 17:00Z-06:00Z
 		expect(p.chargeNow).toBe(false);
-		expect(Date.parse(p.recommendation!.start)).toBeGreaterThanOrEqual(Date.parse('2026-11-03T17:00:00.000Z'));
+		expect(p.recommendation!.start).toBe('2026-11-03T17:00:00.000Z');
 		expect(p.date).toBe('2026-11-03');
 	});
 
 	it('starts now when called after midnight, before readyBy', () => {
-		const p = plan({ nowUtc: '2026-11-04T00:00:00.000Z', peaks: peaksOf([11, 11, 11]) });
+		const p = plan({ nowUtc: '2026-11-04T00:00:00.000Z', peaksByMonth: peaksOf([11, 11, 11]) });
 		expect(p.date).toBe('2026-11-04');
 		expect(p.chargeNow).toBe(false);
 		expect(p.recommendation!.kw).toBe(11);
 		expect(p.recommendation!.start).toBe('2026-11-04T00:00:00.000Z');
 		expect(p.basis).toBe('tomorrow');
+	});
+
+	it('prices the peak fee per local month on a month-end night', () => {
+		// Sat 31 Oct 18:00 local (CET). Weekend + October/November Sunday: low load all night.
+		// 31 Oct is pricey so the cheapest candidates sit after local midnight, in November.
+		const p = plan({
+			nowUtc: '2026-10-31T17:00:00.000Z',
+			days: { '2026-10-31': priceDay('2026-10-31', () => 30), '2026-11-01': priceDay('2026-11-01', flat) },
+			peaksByMonth: peaksOf([11, 11, 11], '2026-10'), // no November entry
+		});
+		const r = p.recommendation!;
+		const a = p.alternative!;
+		// November hours start at 23:00Z; with no November peaks they raise the November fee.
+		expect(Date.parse(r.start)).toBeGreaterThanOrEqual(Date.parse('2026-10-31T23:00:00.000Z'));
+		expect(r.kw).toBe(3.7);
+		expect(r.peakIncrease).toBeCloseTo((11.1 / 3) * perKw, 6);
+		expect(a.kw).toBe(11);
+		expect(Date.parse(a.start)).toBeGreaterThanOrEqual(Date.parse('2026-10-31T23:00:00.000Z'));
+		expect(a.peakIncrease).toBeCloseTo((15 / 3) * perKw, 6);
+	});
+
+	it('sums peak increases across both months for a candidate straddling midnight', () => {
+		// Only 22:00Z (23:00 local, 31 Oct) and 23:00Z (00:00 local, 1 Nov) are priced: 11 kW must straddle.
+		const days = {
+			'2026-10-31': { date: '2026-10-31', quarters: priceDay('2026-10-31', flat).quarters.slice(-4) },
+			'2026-11-01': { date: '2026-11-01', quarters: priceDay('2026-11-01', flat).quarters.slice(0, 4) },
+		};
+		const p = plan({
+			nowUtc: '2026-10-31T17:00:00.000Z',
+			settings: { reducedKw: 11 },
+			days,
+			peaksByMonth: peaksOf([10, 10, 10], '2026-10'),
+		});
+		const r = p.recommendation!;
+		expect(r.start).toBe('2026-10-31T22:00:00.000Z');
+		// October: 11 kWh beats a 10 kW peak (+1 kW); November: 4 kWh into empty peaks (+4 kW).
+		expect(r.peakIncrease).toBeCloseTo((1 / 3) * perKw + (4 / 3) * perKw, 6);
 	});
 
 	it('handles the DST night (25 Oct, 25-hour day)', () => {
@@ -212,7 +265,6 @@ describe('planTonight', () => {
 			nowUtc: '2026-10-24T16:00:00.000Z',
 			batteryPercent: 5,
 			days,
-			peaks: { month: '2026-10', top3: [], estimatedFee: 0, final: false },
 		});
 		expect(p.chargeNow).toBe(false);
 		for (const c of [p.recommendation, p.alternative].filter(Boolean) as PlanCandidate[]) {

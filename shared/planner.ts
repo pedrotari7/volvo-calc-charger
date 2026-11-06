@@ -1,6 +1,6 @@
 import { peakIncrease } from './peaks';
 import { hourRateExVat } from './pricing';
-import { localDateOf, nextLocalTime } from './time';
+import { localDateOf, monthKey, nextLocalTime } from './time';
 import type { IsoUtc, MonthPeaks, Plan, PlanCandidate, PriceDay, SessionHour, Settings, Tariff } from './types';
 
 const HOUR_MS = 3_600_000;
@@ -12,8 +12,10 @@ export interface PlanInput {
 	settings: Settings;
 	days: Record<string, PriceDay>;
 	tariffs: Tariff[];
-	peaks: MonthPeaks;
+	peaksByMonth: Record<string, MonthPeaks>;
 }
+
+const emptyPeaks = (month: string): MonthPeaks => ({ month, top3: [], estimatedFee: 0, final: false });
 
 /** Window start: max(now, 18:00 local today), rounded up to a whole UTC hour; `now` if 18:00 today is past readyBy. */
 function windowStart(nowUtc: IsoUtc, endMs: number): number {
@@ -38,7 +40,14 @@ function candidate(kw: number, startMs: number, kwh: number[], input: PlanInput)
 		energyCost += kwh[i]! * (r.spot + r.markup + r.transfer + r.energyTax) * (1 + r.tariff.vatRate);
 		hours.push({ hourStartUtc, kWh: kwh[i]! });
 	}
-	const inc = peakIncrease(input.peaks, hours, tariff!);
+	// Each local month has its own peak fee: price every month the candidate touches.
+	const byMonth = new Map<string, SessionHour[]>();
+	for (const h of hours) {
+		const m = monthKey(h.hourStartUtc);
+		byMonth.set(m, [...(byMonth.get(m) ?? []), h]);
+	}
+	let inc = 0;
+	for (const [m, hs] of byMonth) inc += peakIncrease(input.peaksByMonth[m] ?? emptyPeaks(m), hs, tariff!);
 	return {
 		kw,
 		start: new Date(startMs).toISOString(),
@@ -75,9 +84,10 @@ export function planTonight(input: PlanInput): Plan {
 
 	const start = windowStart(nowUtc, end);
 	const kws = s.reducedKw < s.chargerMaxKw ? [s.chargerMaxKw, s.reducedKw] : [s.chargerMaxKw];
+	const hoursAt = (kw: number) => Math.ceil(neededKwh / kw - EPS);
 	const best = new Map<number, PlanCandidate>();
 	for (const kw of kws) {
-		const n = Math.ceil(neededKwh / kw - EPS);
+		const n = hoursAt(kw);
 		const kwh = Array.from({ length: n }, (_, i) => (i < n - 1 ? kw : neededKwh - kw * (n - 1)));
 		for (let t = start; t + n * HOUR_MS <= end; t += HOUR_MS) {
 			const c = candidate(kw, t, kwh, input);
@@ -87,7 +97,8 @@ export function planTonight(input: PlanInput): Plan {
 
 	for (const c of best.values()) if (better(c, plan.recommendation)) plan.recommendation = c;
 	if (!plan.recommendation) {
-		plan.chargeNow = true;
+		// Only lack of time means "charge now"; a fitting need with missing prices just has no plan yet.
+		plan.chargeNow = start + hoursAt(s.chargerMaxKw) * HOUR_MS > end;
 		return plan;
 	}
 	plan.alternative = [...best.values()].find(c => c !== plan.recommendation) ?? null;
