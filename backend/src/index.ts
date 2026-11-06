@@ -4,3 +4,4 @@ import { REGION } from './lib/firebase';
 setGlobalOptions({ region: REGION });
 
 export { volvoAuthStart, volvoCallback, volvoDisconnect } from './volvoOAuth';
+export { fetchPrices, fetchPricesHourly } from './fetchPrices';
