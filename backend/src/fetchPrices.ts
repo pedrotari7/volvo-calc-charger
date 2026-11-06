@@ -1,10 +1,11 @@
+import { logger } from 'firebase-functions/v2';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { addHours, localDateOf } from '../../shared/time';
 import type { IsoUtc } from '../../shared/types';
 import { db } from './lib/firebase';
 import { repriceAndUpdatePeaks } from './lib/sessions';
 import type { FetchFn } from './providers/elpriset';
-import { fetchPriceDay } from './providers/elpriset';
+import { ElprisetHttpError, fetchPriceDay } from './providers/elpriset';
 
 export interface FetchPricesDeps {
 	fetchFn?: FetchFn;
@@ -22,23 +23,28 @@ export async function runFetchPrices(
 	for (let k = 1; k <= 7; k++) dates.push(localDateOf(addHours(nowUtc, -24 * k)));
 
 	const written: string[] = [];
+	const failed: string[] = [];
 	for (const date of [...new Set(dates)]) {
-		const ref = db.doc(`prices/${date}`);
-		if ((await ref.get()).exists) continue;
-		const day = await fetchPriceDay(date, fetchFn);
-		if (!day) continue;
-		await ref.set(day);
-		written.push(date);
+		try {
+			const ref = db.doc(`prices/${date}`);
+			if ((await ref.get()).exists) continue;
+			const day = await fetchPriceDay(date, fetchFn);
+			if (!day) continue;
+			await ref.set(day);
+			written.push(date);
+		} catch (e) {
+			failed.push(date);
+			logger.warn('fetchPrices: day failed', { date, status: e instanceof ElprisetHttpError ? e.status : undefined });
+		}
 	}
 
-	let repriced: string[] = [];
-	if (written.length > 0) {
-		repriced = (await db.collection('sessions').where('status', '==', 'pending').get()).docs.map(d => d.id);
-		await repriceAndUpdatePeaks(repriced);
-	}
+	const pending = (await db.collection('sessions').where('status', '==', 'pending').get()).docs.map(d => d.id);
+	if (pending.length > 0) await repriceAndUpdatePeaks(pending);
+	const repriced = pending;
 
 	const tomorrowArrived = written.includes(tomorrow);
 	if (tomorrowArrived) await deps.onTomorrowArrived();
+	if (failed.length > 0) throw new Error(`fetchPrices: failed days: ${failed.join(', ')}`);
 	return { written, repriced, tomorrowArrived };
 }
 

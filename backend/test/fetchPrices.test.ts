@@ -22,7 +22,6 @@ async function clearAll() {
 	for (const c of ['prices', 'sessions', 'peaks', 'tariffs', 'config', 'private', 'users']) {
 		await db.recursiveDelete(db.collection(c));
 	}
-	await db.recursiveDelete(db.collection('users'));
 }
 
 const seedSession = (id: string, hourStartUtc: string, kWh: number) =>
@@ -82,6 +81,30 @@ describe('runFetchPrices', () => {
 		const peaks = (await db.doc('peaks/2026-11').get()).data()!;
 		expect(peaks.top3[0].kW).toBe(5);
 		expect(s.peakShare).toBeCloseTo(peaks.estimatedFee, 6);
+	});
+});
+
+describe('runFetchPrices resilience', () => {
+	it('re-prices sessions pending for a missing tariff without writing prices', async () => {
+		await runFetchPrices(NOW, { fetchFn: stubFetch(), onTomorrowArrived: async () => {} });
+		await seedSession('s1', '2026-11-03T10:00:00.000Z', 5);
+		await runFetchPrices(NOW, { fetchFn: stubFetch(), onTomorrowArrived: async () => {} });
+		expect((await db.doc('sessions/s1').get()).data()!.status).toBe('pending');
+		await db.doc('tariffs/t1').set(TEST_TARIFF);
+		const r = await runFetchPrices(NOW, { fetchFn: stubFetch(), onTomorrowArrived: async () => {} });
+		expect(r.written).toEqual([]);
+		expect((await db.doc('sessions/s1').get()).data()!.status).toBe('priced');
+	});
+
+	it('continues past a failed day, then rejects', async () => {
+		const fetchFn = vi.fn(async (url: string | URL | Request) =>
+			String(url).includes('11-04')
+				? new Response('boom', { status: 500 })
+				: new Response(fixture, { status: 200 })
+		) as unknown as typeof fetch;
+		await expect(runFetchPrices(NOW, { fetchFn, onTomorrowArrived: async () => {} })).rejects.toThrow('2026-11-04');
+		expect((await db.doc('prices/2026-10-31').get()).exists).toBe(true);
+		expect((await db.doc('prices/2026-11-04').get()).exists).toBe(false);
 	});
 });
 
@@ -154,6 +177,14 @@ describe('sendPush', () => {
 		expect((await db.doc('users/u1/pushTokens/dead').get()).exists).toBe(false);
 		expect((await db.doc('users/u3/pushTokens/bad').get()).exists).toBe(false);
 		expect((await db.doc('users/u2/pushTokens/good').get()).exists).toBe(true);
+	});
+
+	it('releases the dedupe key when FCM throws so a retry can send', async () => {
+		await db.doc('users/u1/pushTokens/tok1').set({});
+		const bad = { sendEachForMulticast: vi.fn(async () => { throw new Error('fcm down'); }) };
+		await expect(sendPush(input, bad as never)).rejects.toThrow('fcm down');
+		expect((await db.doc('private/notified/keys/k1').get()).exists).toBe(false);
+		expect(await sendPush(input, messaging([ok]) as never)).toBe('sent');
 	});
 
 	it('records dedupe even with no tokens', async () => {

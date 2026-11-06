@@ -39,21 +39,26 @@ export async function sendPush(
 	});
 	if (!fresh) return 'duplicate';
 
-	const tokenDocs = (await db.collectionGroup('pushTokens').get()).docs;
-	// The token is the doc id; a `token` field wins when present.
-	const tokenOf = (d: (typeof tokenDocs)[number]): string => (d.get('token') as string | undefined) ?? d.id;
-	const tokens = tokenDocs.map(tokenOf);
-	if (tokens.length === 0) return 'sent';
+	try {
+		const tokenDocs = (await db.collectionGroup('pushTokens').get()).docs;
+		// The token is the doc id; a `token` field wins when present.
+		const tokenOf = (d: (typeof tokenDocs)[number]): string => (d.get('token') as string | undefined) ?? d.id;
+		const tokens = tokenDocs.map(tokenOf);
+		if (tokens.length === 0) return 'sent';
 
-	const res = await messaging.sendEachForMulticast({
-		tokens,
-		notification: { title: input.title, body: input.body },
-		data: { url: input.url, kind: input.kind },
-		webpush: { fcmOptions: { link: input.url } },
-	});
-	const dead = res.responses
-		.map((r, i) => (r.error && DEAD_TOKEN_CODES.has(r.error.code) ? tokens[i] : null))
-		.filter((t): t is string => t !== null);
-	await Promise.all(tokenDocs.filter(d => dead.includes(tokenOf(d))).map(d => d.ref.delete()));
+		const res = await messaging.sendEachForMulticast({
+			tokens,
+			notification: { title: input.title, body: input.body },
+			data: { url: input.url, kind: input.kind },
+			webpush: { fcmOptions: { link: input.url } },
+		});
+		const dead = res.responses
+			.map((r, i) => (r.error && DEAD_TOKEN_CODES.has(r.error.code) ? tokens[i] : null))
+			.filter((t): t is string => t !== null);
+		await Promise.all(tokenDocs.filter(d => dead.includes(tokenOf(d))).map(d => d.ref.delete()));
+	} catch (e) {
+		await ref.delete();
+		throw e;
+	}
 	return 'sent';
 }
