@@ -49,7 +49,7 @@ Success looks like: every Zaptec session appears in History within ~10 minutes o
 - API calls need `Authorization: Bearer` + `vcc-api-key` header. Free tier 10,000 calls/day.
 - All needed scopes exist in the new realm: `openid conve:vehicle_relation conve:lock_status conve:doors_status conve:windows_status conve:odometer_status conve:tyre_status conve:warnings conve:diagnostics_workshop conve:trip_statistics conve:battery_charge_level conve:recharge_status conve:command_accessibility conve:commands conve:lock conve:climatization_start_stop energy:state:read energy:capability:read energy:battery_charge_level energy:electric_range energy:charging_connection_status energy:charging_system_status energy:estimated_charging_time energy:recharge_status energy:charging_history:read location:read`.
 - Docs say client credentials are issued after publishing. The owner already has a Client ID/Secret; whether they work unpublished is unknown. If the first sign-in fails, publishing is required, which requires `/terms` and `/privacy` to be live.
-- **Response shapes are unconfirmed.** Implementation task 1 is to sign in on the deployed app, record real responses, and fix parsers/fixtures.
+- **Response shapes are unconfirmed.** The first Volvo task, right after the first deploy, is to sign in on the deployed app, record real responses, and fix parsers/fixtures.
 
 ## 4. Architecture
 
@@ -121,7 +121,7 @@ Storing every tariff value excluding VAT, with one VAT rate, avoids mixing incl.
 
 ### 6.1 Hour price
 
-Session hours come from Zaptec `energyDetails`: each entry's energy belongs to the clock hour that **ends at or contains** the interval before its timestamp, i.e. hour start = `floor_hour(previous entry timestamp)` (for the 2026-11-02 session: 9.930 kWh → 23:00 UTC hour, 2.011 kWh → 00:00 UTC hour). Entries with 0 kWh are dropped.
+Session hours come from Zaptec `energyDetails`: each entry's energy was delivered in the interval from the previous entry's timestamp (or the session start) to its own timestamp, and is **spread across the UTC clock hours that interval overlaps, in proportion to the overlap**. For the 2026-11-02 session this gives 9.930 kWh → 23:00 UTC hour and 2.011 kWh → 00:00 UTC hour (the sub-second spill-over is rounded away at 3 decimals). An interval spanning several hours, which happens when details are sparse, is spread evenly instead of landing in one hour and inflating the peak. Hours that round to 0 kWh are dropped.
 
 For a UTC hour `h`:
 
@@ -140,7 +140,7 @@ hourCost(h)    = kWh(h) × (energyRate(h) + gridRate(h)) × (1 + vatRate)
 
 ### 6.3 Peak fee estimate
 
-For each month, collect every charger hour (kW = kWh in that clock hour). `top3` is the three highest. `estimatedFee = mean(top3.kW) × peakPerKwMonth × (1 + vatRate)`. Each session's `peakShare` is its hours' share of that fee. Recomputed whenever a session is added. `final` is set after the month ends.
+For each month, collect every charger hour (kW = kWh in that clock hour). `top3` is the three highest. `estimatedFee = (sum(top3.kW) / 3) × peakPerKwMonth × (1 + vatRate)`, dividing by 3 even when the charger has fewer than three hours that month, because the charger adds 0 kW in the other peak hours. Each session's `peakShare` is its hours' share of that fee. Recomputed whenever a session is added. `final` is set after the month ends.
 
 ### 6.4 Planner
 
@@ -153,6 +153,8 @@ for kw in [chargerMaxKw, reducedKw]:
     cost = Σ hourly energy cost + increase in this month's estimated peak fee
 pick the cheapest candidate; keep the best candidate at the other kW as the alternative
 ```
+
+Each candidate charges at `kw` for every hour except the last, which takes the remainder. Ties go to the higher kW, then the earlier start.
 
 If tomorrow's prices are missing, the plan uses known prices only, marks `basis: 'today'`, and is recomputed when they arrive. If `neededKwh` is 0 no plan or push is made. If no candidate fits before `readyBy`, the plan recommends charging now at max kW.
 
@@ -179,7 +181,7 @@ FCM web push. iOS requires the PWA to be installed to the Home Screen.
 |---|---|---|
 | Plug in | `planTonight`: battery < target and not plugged in | Once per evening |
 | Session done | Zaptec session completes with energy > 0 | Once per session |
-| Car left open | `pollCar` after 22:00 local, car parked, any unlocked lock or open door/window/tailgate | Once per distinct issue set until it changes |
+| Car left open | `pollCar` between 22:00 and 06:00 local (taken to mean parked for the night), any unlocked lock or open door/window/tailgate/hood/sunroof | Once per distinct issue set until it changes |
 | Volvo reconnect | 7 days before `grantStartedAt + 3 months`, and on refresh failure | Once per condition |
 
 ## 9. Error handling
@@ -196,7 +198,7 @@ FCM web push. iOS requires the PWA to be installed to the Home Screen.
 ## 10. Testing
 
 - **`shared/` unit tests (Vitest)**: pricing worked example from the real 2026-11-02 session; UTC parsing of zoneless Zaptec timestamps; high/low-load boundaries; DST days (92/100 quarters, 23/25-hour days); tariff selection by date; peak top-3 and share; planner (midnight-crossing deadline, missing tomorrow, reduced kW winning, already at target, no fitting window); kr/100 km and petrol maths.
-- **Backend**: functions against the Firestore emulator with recorded responses for elprisetjustnu, Zaptec (anonymised spike output) and Volvo (doc-shaped until task 1 replaces them).
+- **Backend**: functions against the Firestore emulator with recorded responses for elprisetjustnu, Zaptec (anonymised spike output) and Volvo (doc-shaped until the Volvo capture task replaces them).
 - **Rules**: allowlisted read; `private/*` unreadable; function-owned collections unwritable by clients.
 - **E2E (Playwright, mobile + desktop)** against a seeded emulator: Home, History drill-down, Settings tariff edit.
 
