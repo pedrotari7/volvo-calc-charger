@@ -1,3 +1,4 @@
+import { logger } from 'firebase-functions/v2';
 import type { ChargerState } from '../../../shared/types';
 
 export type FetchFn = typeof fetch;
@@ -37,6 +38,9 @@ export function mapChargerState(obs: Observation[], updatedAt: string): ChargerS
 		const n = o ? Number(o.ValueAsString) : NaN;
 		return Number.isFinite(n) ? n : 0;
 	};
+	if (!obs.some(x => Number(x.StateId) === STATE_OPERATION_MODE)) {
+		logger.warn(`zaptec: state has no observation ${STATE_OPERATION_MODE} (ChargerOperationMode)`);
+	}
 	const mode = value(STATE_OPERATION_MODE);
 	return {
 		pluggedIn: mode === 2 || mode === 3 || mode === 5,

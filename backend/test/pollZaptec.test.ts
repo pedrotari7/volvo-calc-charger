@@ -105,6 +105,49 @@ describe('runPollZaptec', () => {
 	});
 });
 
+describe('runPollZaptec notification retry', () => {
+	const ID = '5e1f0c7a-3b92-4d6e-a8f4-1c7d92b0e3a5';
+	const one = { Pages: 1, Data: [history.Data.find((d: { Id: string }) => d.Id === ID)] };
+
+	it('retries the push on the next poll when sendPush throws', async () => {
+		await seedPrices();
+		push.mockRejectedValueOnce(new Error('fcm down'));
+		await runPollZaptec(NOW, { client: stubClient(one) });
+		expect((await db.doc(`sessions/${ID}`).get()).data()!.notified).toBe(false);
+		expect((await db.doc('status/zaptec').get()).exists).toBe(false);
+		push.mockClear();
+		const r = await runPollZaptec(NOW, { client: stubClient(one) });
+		expect(r.newSessions).toEqual([]);
+		expect(push).toHaveBeenCalledTimes(1);
+		expect((push.mock.calls as unknown as [{ dedupeKey: string }][])[0][0].dedupeKey).toBe(`session:${ID}`);
+		expect((await db.doc(`sessions/${ID}`).get()).data()!.notified).toBe(true);
+		expect((await db.doc('status/zaptec').get()).exists).toBe(true);
+	});
+
+	it('still pushes after a pricing failure, and notifies once in total', async () => {
+		await seedPrices();
+		const sessions = await import('../src/lib/sessions');
+		const spy = vi.spyOn(sessions, 'repriceAndUpdatePeaks').mockRejectedValueOnce(new Error('boom'));
+		await runPollZaptec(NOW, { client: stubClient(one) });
+		spy.mockRestore();
+		await runPollZaptec(NOW, { client: stubClient(one) });
+		expect(push).toHaveBeenCalledTimes(1);
+		expect((await db.doc(`sessions/${ID}`).get()).data()!.notified).toBe(true);
+	});
+
+	it('a session pushed as pending and priced later is not pushed again', async () => {
+		await runPollZaptec(NOW, { client: stubClient(one) });
+		expect(push).toHaveBeenCalledTimes(1);
+		expect((await db.doc(`sessions/${ID}`).get()).data()!.status).toBe('pending');
+		await seedPrices();
+		const { repriceAndUpdatePeaks } = await import('../src/lib/sessions');
+		await repriceAndUpdatePeaks([ID]);
+		await runPollZaptec(NOW, { client: stubClient(one) });
+		expect(push).toHaveBeenCalledTimes(1);
+		expect((await db.doc(`sessions/${ID}`).get()).data()!.status).toBe('priced');
+	});
+});
+
 describe('zaptec client', () => {
 	const json = (b: unknown) => new Response(JSON.stringify(b), { status: 200 });
 	const stub = (expires = 86399) => {

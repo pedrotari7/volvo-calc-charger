@@ -35,7 +35,7 @@ export async function runPollZaptec(nowUtc: IsoUtc, deps: PollZaptecDeps): Promi
 	for (const s of fresh) {
 		const plan = (await db.doc(`plans/${localDateOf(s.startUtc)}`).get()).data();
 		const rec = plan?.recommendation as PricedSession['planned'];
-		const doc: Omit<PricedSession, 'id'> = {
+		const doc: Omit<PricedSession, 'id'> & { notified: boolean } = {
 			startUtc: s.startUtc,
 			endUtc: s.endUtc,
 			kWh: s.kWh,
@@ -43,30 +43,45 @@ export async function runPollZaptec(nowUtc: IsoUtc, deps: PollZaptecDeps): Promi
 			status: 'pending',
 			cost: null,
 			peakShare: 0,
+			notified: false,
 			planned: rec ? { kw: rec.kw, start: rec.start, end: rec.end, cost: rec.cost } : null,
 		};
 		await db.doc(`sessions/${s.id}`).set(doc);
 	}
 
 	const newSessions = fresh.map(s => s.id);
-	await repriceAndUpdatePeaks(newSessions);
-
-	for (const id of newSessions) {
-		const s = (await db.doc(`sessions/${id}`).get()).data() as PricedSession;
-		const body =
-			s.status === 'priced' && s.cost
-				? `Charged ${formatKwh(s.kWh)} for ${formatKr(s.cost.total)} (${formatKr(s.cost.total / s.kWh)}/kWh)`
-				: `Charged ${formatKwh(s.kWh)}, price pending`;
-		await sendPush({
-			kind: 'sessionDone',
-			title: 'Charging done',
-			body,
-			dedupeKey: `session:${id}`,
-			url: `/history/${id}`,
-		});
+	let ok = true;
+	try {
+		await repriceAndUpdatePeaks(newSessions);
+	} catch (e) {
+		ok = false;
+		logger.warn('pollZaptec: pricing failed', { error: e instanceof Error ? e.message : 'unknown' });
 	}
 
-	await db.doc('status/zaptec').set({ lastOkAt: nowUtc });
+	// Sessions not yet notified (just written, or left over from an earlier failed poll).
+	const unnotified = (await db.collection('sessions').where('notified', '==', false).get()).docs.map(d => d.id);
+	for (const id of unnotified) {
+		try {
+			const s = (await db.doc(`sessions/${id}`).get()).data() as PricedSession;
+			const body =
+				s.status === 'priced' && s.cost
+					? `Charged ${formatKwh(s.kWh)} for ${formatKr(s.cost.total)} (${formatKr(s.cost.total / s.kWh)}/kWh)`
+					: `Charged ${formatKwh(s.kWh)}, price pending`;
+			await sendPush({
+				kind: 'sessionDone',
+				title: 'Charging done',
+				body,
+				dedupeKey: `session:${id}`,
+				url: `/history/${id}`,
+			});
+			await db.doc(`sessions/${id}`).update({ notified: true });
+		} catch (e) {
+			ok = false;
+			logger.warn('pollZaptec: notify failed', { sessionId: id, error: e instanceof Error ? e.message : 'unknown' });
+		}
+	}
+
+	if (ok) await db.doc('status/zaptec').set({ lastOkAt: nowUtc });
 	return { newSessions };
 }
 
