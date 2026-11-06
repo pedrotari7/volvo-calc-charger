@@ -1,5 +1,6 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { ENERGY_ACCEPT, JSON_ACCEPT, VOLVO_BASE, vehiclePaths } from '../src/providers/volvo';
 import { getAccessToken } from '../src/providers/volvoAuth';
 
 // Usage (owner, after "Connect Volvo" on the deployed app):
@@ -11,11 +12,8 @@ import { getAccessToken } from '../src/providers/volvoAuth';
 const TEST_VIN = 'YV1TESTVIN0000001';
 const TEST_LAT = 59.31;
 const TEST_LON = 18.16;
-const BASE = 'https://api.volvocars.com';
+const BASE = VOLVO_BASE;
 const OUT_DIR = path.resolve(__dirname, '../test/fixtures/volvo');
-
-const JSON_ACCEPT = 'application/json';
-const ENERGY_ACCEPT = 'application/vnd.volvocars.api.energy.vehicledata.v1+json';
 
 const endpoints: Array<{ name: string; path: (vin: string) => string; accept: string }> = [
 	{ name: 'details', path: v => `/connected-vehicle/v2/vehicles/${v}`, accept: JSON_ACCEPT },
@@ -90,7 +88,7 @@ async function main() {
 		);
 	};
 
-	const list = await get('/connected-vehicle/v2/vehicles', JSON_ACCEPT);
+	const list = await get(vehiclePaths.vehicles(), JSON_ACCEPT);
 	const vin = (list.body as { data?: Array<{ vin?: string }> } | null)?.data?.[0]?.vin;
 	if (list.status !== 200 || !vin) {
 		console.error(`vehicles list failed (HTTP ${list.status}); nothing written.`);
