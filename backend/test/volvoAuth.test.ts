@@ -158,6 +158,46 @@ describe('getAccessToken', () => {
 		expect(status?.lastRefreshError).toMatch(/400/);
 	});
 
+	it('discards a stale refresh result when a new grant replaced the doc mid-flight', async () => {
+		await seed(iso(Date.now() - 1000));
+		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+		const fetchFn = vi.fn(async () => {
+			// What handleVolvoCallback does when the owner reconnects during the refresh.
+			await db.doc('private/volvo').set({
+				refreshToken: 'rNew',
+				accessToken: 'aNew',
+				accessExpiresAt: iso(Date.now() + 30 * 60_000),
+				grantStartedAt: iso(Date.now()),
+				lastRefreshError: null,
+			});
+			return json(200, { access_token: 'aOld', refresh_token: 'rOld', expires_in: 1800 });
+		});
+		await expect(getAccessToken(creds, fetchFn as unknown as typeof fetch)).resolves.toBe('aNew');
+		expect(fetchFn).toHaveBeenCalledTimes(1);
+		const stored = (await db.doc('private/volvo').get()).data();
+		expect(stored?.refreshToken).toBe('rNew');
+		expect(stored?.accessToken).toBe('aNew');
+		expect(warn).toHaveBeenCalledTimes(1);
+		warn.mockRestore();
+	});
+
+	it('does not let a stale 400 flag a freshly replaced grant as disconnected', async () => {
+		await seed(iso(Date.now() - 1000));
+		await db.doc('status/volvo').set({ connected: true, grantStartedAt: iso(0), lastRefreshError: null });
+		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+		const fetchFn = vi.fn(async () => {
+			await db.doc('private/volvo').set({
+				refreshToken: 'rNew',
+				accessToken: 'aNew',
+				accessExpiresAt: iso(Date.now() + 30 * 60_000),
+			});
+			return json(400, { error: 'invalid_grant' });
+		});
+		await expect(getAccessToken(creds, fetchFn as unknown as typeof fetch)).resolves.toBe('aNew');
+		expect((await db.doc('status/volvo').get()).data()?.connected).toBe(true);
+		warn.mockRestore();
+	});
+
 	it('releases the lease and rethrows on a 5xx so the next call can retry', async () => {
 		await seed(iso(Date.now() - 1000));
 		const fetchFn = vi.fn(async () => json(503, {}));

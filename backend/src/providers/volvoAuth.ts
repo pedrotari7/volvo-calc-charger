@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
+import type { DocumentReference, Transaction } from 'firebase-admin/firestore';
 import { db } from '../lib/firebase';
 
 /** Exactly the scopes in spec section 3. `conve:unlock` is deliberately absent. */
@@ -126,9 +127,15 @@ export async function exchangeCode(
 	return parseTokenSet(res);
 }
 
-type Claim = { kind: 'token'; token: string } | { kind: 'claimed'; refreshToken: string } | { kind: 'wait' };
+type Claim =
+	| { kind: 'token'; token: string }
+	| { kind: 'claimed'; refreshToken: string; leaseId: string }
+	| { kind: 'wait' };
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// A lease must outlive the Volvo request, or a waiter could take over while the holder is mid-flight.
+if (LEASE_MS <= REQUEST_TIMEOUT_MS) throw new Error('LEASE_MS must exceed REQUEST_TIMEOUT_MS');
 
 /**
  * Returns a valid access token, refreshing it if needed.
@@ -137,8 +144,11 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
  * token would burn the grant. The Volvo call therefore must not happen inside a Firestore
  * transaction body (which the SDK may retry or run concurrently with a rival that read the same
  * state). Instead a transaction re-reads the doc and either returns the token another invocation
- * already refreshed, or claims a short lease (`refreshingUntil`). Only the lease holder calls Volvo;
- * everyone else polls until the new token appears or the lease lapses.
+ * already refreshed, or claims a short lease (`refreshingUntil` + a random `refreshingBy` id).
+ * Only the lease holder calls Volvo; everyone else polls until the new token appears or the lease
+ * lapses. Every write after the Volvo call is conditional on still owning the lease and on the
+ * stored refresh token being the one we spent, so a stale holder can never overwrite a newer state
+ * (for example a new grant written by the OAuth callback while this refresh was in flight).
  */
 export async function getAccessToken(
 	creds: VolvoCreds,
@@ -161,8 +171,9 @@ export async function getAccessToken(
 			}
 			const leaseUntil = Date.parse(data.refreshingUntil ?? '');
 			if (leaseUntil > at) return { kind: 'wait' };
-			tx.update(ref, { refreshingUntil: new Date(at + LEASE_MS).toISOString() });
-			return { kind: 'claimed', refreshToken: data.refreshToken };
+			const leaseId = randomBytes(12).toString('hex');
+			tx.update(ref, { refreshingUntil: new Date(at + LEASE_MS).toISOString(), refreshingBy: leaseId });
+			return { kind: 'claimed', refreshToken: data.refreshToken, leaseId };
 		});
 
 		if (claim.kind === 'token') return claim.token;
@@ -170,17 +181,47 @@ export async function getAccessToken(
 			await sleep(LEASE_POLL_MS);
 			continue;
 		}
-		return refreshWithLease(claim.refreshToken, creds, fetchFn, now);
+		const outcome = await refreshWithLease(claim.refreshToken, claim.leaseId, creds, fetchFn, now);
+		if (outcome.kind === 'done') return outcome.token;
+		// Our result was stale (lease lost or grant replaced): re-evaluate against what is stored now.
 	}
+}
+
+type Outcome = { kind: 'done'; token: string } | { kind: 'stale' };
+
+/**
+ * Applies `mutate` only if the doc still carries our lease id and the refresh token we spent.
+ * Returns false (and writes nothing) otherwise.
+ */
+async function writeIfOwner(
+	leaseId: string,
+	spentToken: string,
+	mutate: (tx: Transaction, ref: DocumentReference) => void
+): Promise<boolean> {
+	const ref = db.doc('private/volvo');
+	return db.runTransaction(async tx => {
+		const data = (await tx.get(ref)).data();
+		if (!data || data.refreshingBy !== leaseId || data.refreshToken !== spentToken) return false;
+		mutate(tx, ref);
+		return true;
+	});
+}
+
+const RELEASE = { refreshingUntil: null, refreshingBy: null };
+
+async function release(leaseId: string, spentToken: string) {
+	await writeIfOwner(leaseId, spentToken, (tx, ref) => tx.update(ref, RELEASE));
 }
 
 async function refreshWithLease(
 	refreshToken: string,
+	leaseId: string,
 	creds: VolvoCreds,
 	fetchFn: FetchFn,
 	now: () => Date
-): Promise<string> {
-	const ref = db.doc('private/volvo');
+): Promise<Outcome> {
+	const warnStale = (what: string) =>
+		console.warn(`Volvo refresh ${what} discarded: lease or grant changed meanwhile`);
 	let res: Response;
 	try {
 		res = await postToken(
@@ -189,20 +230,24 @@ async function refreshWithLease(
 			fetchFn
 		);
 	} catch (err) {
-		await ref.update({ refreshingUntil: null });
+		await release(leaseId, refreshToken);
 		throw err;
 	}
 
 	if (res.status === 400 || res.status === 401) {
 		const lastRefreshError = `refresh rejected (${res.status}) at ${now().toISOString()}`;
-		const batch = db.batch();
-		batch.update(ref, { refreshingUntil: null, lastRefreshError });
-		batch.set(db.doc('status/volvo'), { connected: false, lastRefreshError }, { merge: true });
-		await batch.commit();
+		const written = await writeIfOwner(leaseId, refreshToken, (tx, ref) => {
+			tx.update(ref, { ...RELEASE, lastRefreshError });
+			tx.set(db.doc('status/volvo'), { connected: false, lastRefreshError }, { merge: true });
+		});
+		if (!written) {
+			warnStale('rejection');
+			return { kind: 'stale' };
+		}
 		throw new VolvoReconnectRequired(lastRefreshError);
 	}
 	if (!res.ok) {
-		await ref.update({ refreshingUntil: null });
+		await release(leaseId, refreshToken);
 		throw new Error(`Volvo token refresh failed (${res.status})`);
 	}
 
@@ -210,16 +255,22 @@ async function refreshWithLease(
 	try {
 		tokens = await parseTokenSet(res);
 	} catch (err) {
-		await ref.update({ refreshingUntil: null });
+		await release(leaseId, refreshToken);
 		throw err;
 	}
 	// One atomic write: the rotated refresh token lands together with the access token.
-	await ref.update({
-		refreshToken: tokens.refreshToken,
-		accessToken: tokens.accessToken,
-		accessExpiresAt: new Date(now().getTime() + tokens.expiresIn * 1000).toISOString(),
-		refreshingUntil: null,
-		lastRefreshError: null,
-	});
-	return tokens.accessToken;
+	const written = await writeIfOwner(leaseId, refreshToken, (tx, ref) =>
+		tx.update(ref, {
+			refreshToken: tokens.refreshToken,
+			accessToken: tokens.accessToken,
+			accessExpiresAt: new Date(now().getTime() + tokens.expiresIn * 1000).toISOString(),
+			...RELEASE,
+			lastRefreshError: null,
+		})
+	);
+	if (!written) {
+		warnStale('result');
+		return { kind: 'stale' };
+	}
+	return { kind: 'done', token: tokens.accessToken };
 }
