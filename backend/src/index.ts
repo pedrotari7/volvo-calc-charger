@@ -7,3 +7,4 @@ export { volvoAuthStart, volvoCallback, volvoDisconnect } from './volvoOAuth';
 export { fetchPrices, fetchPricesHourly } from './fetchPrices';
 export { pollZaptec } from './pollZaptec';
 export { pollCar } from './pollCar';
+export { planTonight } from './planTonight';

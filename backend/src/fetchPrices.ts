@@ -4,6 +4,7 @@ import { addHours, localDateOf } from '../../shared/time';
 import type { IsoUtc } from '../../shared/types';
 import { db } from './lib/firebase';
 import { repriceAndUpdatePeaks } from './lib/sessions';
+import { runPlanTonight } from './planTonight';
 import type { FetchFn } from './providers/elpriset';
 import { ElprisetHttpError, fetchPriceDay } from './providers/elpriset';
 
@@ -48,7 +49,7 @@ export async function runFetchPrices(
 	return { written, repriced, tomorrowArrived };
 }
 
-const run = () => runFetchPrices(new Date().toISOString(), { onTomorrowArrived: async () => {} });
+const run = () => runFetchPrices(new Date().toISOString(), { onTomorrowArrived: () => runPlanTonight(new Date().toISOString()) });
 
 export const fetchPrices = onSchedule({ schedule: 'every day 13:30', timeZone: 'Europe/Stockholm' }, async () => {
 	await run();
