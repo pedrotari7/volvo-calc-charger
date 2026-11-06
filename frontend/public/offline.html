@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+		<title>Volvo Charge: offline</title>
+		<style>
+			:root {
+				color-scheme: dark;
+			}
+			body {
+				margin: 0;
+				min-height: 100dvh;
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				justify-content: center;
+				gap: 0.75rem;
+				padding: 2rem;
+				text-align: center;
+				background: #07080a;
+				color: #f3f5f8;
+				font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+			}
+			h1 {
+				margin: 0;
+				font-size: 1.25rem;
+			}
+			p {
+				margin: 0;
+				max-width: 22rem;
+				font-size: 0.875rem;
+				line-height: 1.6;
+				color: #98a1b1;
+			}
+			button {
+				margin-top: 1rem;
+				height: 2.75rem;
+				padding: 0 1.25rem;
+				border: 0;
+				border-radius: 0.75rem;
+				background: #3ddc84;
+				color: #07080a;
+				font-size: 0.875rem;
+				font-weight: 600;
+			}
+		</style>
+	</head>
+	<body>
+		<h1>You're offline</h1>
+		<p>Volvo Charge needs a connection. It will load as soon as you're back.</p>
+		<button type="button" onclick="location.reload()">Try again</button>
+	</body>
+</html>
