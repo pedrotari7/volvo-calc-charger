@@ -1,6 +1,7 @@
 import * as stylex from '@stylexjs/stylex';
 import { formatAgo, formatKr, formatKwh } from '@shared/format';
 import type { CarState, ChargerState } from '@shared/types';
+import { formatLocalTime } from '../lib/localTime';
 import { colors } from '../app/tokens.stylex';
 import { BatteryBar } from './BatteryBar';
 
@@ -52,8 +53,8 @@ export const CarSummary = ({ car, charger, now, rateNow }: Props) => {
 			{charger?.charging ? (
 				<p {...stylex.props(styles.live)}>
 					{charger.liveKw.toFixed(1)} kW · {formatKwh(charger.sessionKwh)} ·{' '}
-					{rateNow === null ? '–' : formatKr(rateNow * charger.sessionKwh)} so far
-					{estFullAt ? ` · full ${new Date(estFullAt).toLocaleTimeString('sv-SE', { timeZone: 'Europe/Stockholm', hour: '2-digit', minute: '2-digit' })}` : ''}
+					{rateNow === null ? '–' : `≈ ${formatKr(rateNow * charger.sessionKwh)}`} so far (at the current hour&apos;s price)
+					{estFullAt ? ` · full ${formatLocalTime(estFullAt)}` : ''}
 				</p>
 			) : null}
 			{car ? <p {...stylex.props(styles.muted)}>Updated {formatAgo(car.updatedAt, now)}</p> : null}

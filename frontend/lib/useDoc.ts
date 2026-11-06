@@ -14,7 +14,7 @@ export const useDoc = <T,>(path: string): DocState<T> => {
 	const [state, setState] = useState<DocState<T>>({ data: null, loading: true, error: null });
 
 	useEffect(() => {
-		setState({ data: null, loading: true, error: null });
+		setState((s) => (s.loading && !s.error ? s : { data: null, loading: true, error: null }));
 
 		return onSnapshot(
 			doc(getDb(), path),

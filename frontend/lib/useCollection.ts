@@ -11,12 +11,15 @@ export interface CollectionState<T> {
 	error: Error | null;
 }
 
+const NO_CONSTRAINTS: QueryConstraint[] = [];
+
 // Memoise `constraints` in the caller: a new array each render resubscribes.
-export const useCollection = <T,>(path: string, constraints: QueryConstraint[] = []): CollectionState<T> => {
+export const useCollection = <T,>(path: string, constraints: QueryConstraint[] = NO_CONSTRAINTS): CollectionState<T> => {
 	const [state, setState] = useState<CollectionState<T>>({ data: [], loading: true, error: null });
 
 	useEffect(() => {
-		setState({ data: [], loading: true, error: null });
+		// Only reset when a previous path/query left settled data behind.
+		setState((s) => (s.loading && !s.error ? s : { data: [], loading: true, error: null }));
 
 		return onSnapshot(
 			query(collection(getDb(), path), ...constraints),

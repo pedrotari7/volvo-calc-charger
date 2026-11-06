@@ -12,12 +12,21 @@ import { CommandButtons } from '../../components/CommandButtons';
 import { PriceChart } from '../../components/PriceChart';
 import { TonightCard } from '../../components/TonightCard';
 import { useCollection } from '../../lib/useCollection';
+import { colors } from '../tokens.stylex';
 import { useDoc } from '../../lib/useDoc';
 import { useNow } from '../../lib/useNow';
 
 const styles = stylex.create({
+	note: { fontSize: 13, color: colors.muted },
+	error: { fontSize: 13, color: colors.bad },
 	page: { display: 'flex', flexDirection: 'column', gap: 12, padding: 16, maxWidth: 560, marginInline: 'auto' },
 });
+
+const Note = ({ error, children }: { error?: boolean; children: string }) => (
+	<p role={error ? 'alert' : 'status'} {...stylex.props(error ? styles.error : styles.note)}>
+		{children}
+	</p>
+);
 
 const HomePage = () => {
 	const now = useNow();
@@ -45,9 +54,26 @@ const HomePage = () => {
 				volvoConnected={volvo.loading || volvo.data?.connected === true}
 				now={now}
 			/>
-			<CarSummary car={car.data} charger={charger.data} now={now} rateNow={rateNow} />
-			<TonightCard plan={plan.data} />
-			<PriceChart days={days} tariffs={tariffs.data} now={now} window={rec ? { start: rec.start, end: rec.end } : null} />
+			{car.error ? <Note error>Couldn&apos;t load the car</Note> : null}
+			{charger.error ? <Note error>Couldn&apos;t load the charger</Note> : null}
+			{car.loading ? (
+				<Note>Loading…</Note>
+			) : (
+				<CarSummary car={car.data} charger={charger.data} now={now} rateNow={rateNow} />
+			)}
+			{plan.error ? <Note error>Couldn&apos;t load the plan</Note> : plan.loading ? null : <TonightCard plan={plan.data} />}
+			{prices.error || tariffs.error ? (
+				<Note error>Couldn&apos;t load prices</Note>
+			) : prices.loading || tariffs.loading ? (
+				<Note>Loading prices…</Note>
+			) : (
+				<PriceChart
+					days={days}
+					tariffs={tariffs.data}
+					now={now}
+					window={rec ? { start: rec.start, end: rec.end } : null}
+				/>
+			)}
 			<CommandButtons locked={car.data?.locked?.value ?? null} />
 		</main>
 	);
