@@ -1,0 +1,19 @@
+{
+	"firestore": {
+		"rules": "firestore.rules",
+		"indexes": "firestore.indexes.json"
+	},
+	"functions": {
+		"source": "./backend",
+		"runtime": "nodejs24",
+		"ignore": ["node_modules", ".git", "**/*.test.ts", "src/**", "scripts/**", "test/**"],
+		"predeploy": ["pnpm --filter backend lint", "pnpm --filter backend build"]
+	},
+	"emulators": {
+		"auth": { "port": 9099 },
+		"functions": { "port": 5001 },
+		"firestore": { "port": 8080 },
+		"ui": { "enabled": true },
+		"singleProjectMode": true
+	}
+}

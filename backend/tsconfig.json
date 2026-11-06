@@ -1,0 +1,21 @@
+{
+	"compilerOptions": {
+		"module": "commonjs",
+		"moduleResolution": "node",
+		"target": "es2022",
+		"lib": ["es2022"],
+		"outDir": "lib",
+		// shared/ sits outside this package, so rootDir is the repo root;
+		// output lands in lib/backend/src/, hence `main`.
+		"rootDir": "..",
+		"strict": true,
+		"noImplicitReturns": true,
+		"noUnusedLocals": true,
+		"esModuleInterop": true,
+		"skipLibCheck": true,
+		"sourceMap": true,
+		"resolveJsonModule": true
+	},
+	"include": ["src/**/*.ts", "../shared/**/*.ts"],
+	"exclude": ["node_modules", "lib", "../shared/**/*.test.ts", "scripts"]
+}

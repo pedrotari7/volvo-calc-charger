@@ -1,0 +1,52 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAllowed() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email in get(/databases/$(database)/documents/config/allowlist).data.emails;
+    }
+
+    // Client-writable.
+    match /config/settings {
+      allow read, write: if isAllowed();
+    }
+    match /config/allowlist {
+      allow read, write: if isAllowed();
+    }
+    match /tariffs/{id} {
+      allow read, write: if isAllowed();
+    }
+    match /users/{uid}/pushTokens/{token} {
+      allow read, write: if isAllowed() && request.auth.uid == uid;
+    }
+
+    // Function-owned: readable by allowlisted users, written only by the backend.
+    match /prices/{id} {
+      allow read: if isAllowed();
+    }
+    match /sessions/{id} {
+      allow read: if isAllowed();
+    }
+    match /peaks/{id} {
+      allow read: if isAllowed();
+    }
+    match /charger/state {
+      allow read: if isAllowed();
+    }
+    // car/state plus the odometer history (a subcollection under a car doc,
+    // since 'car/odometer/{date}' is not a valid Firestore doc path).
+    match /car/{document=**} {
+      allow read: if isAllowed();
+    }
+    match /plans/{id} {
+      allow read: if isAllowed();
+    }
+    match /status/{id} {
+      allow read: if isAllowed();
+    }
+
+    // private/* and anything unlisted: default deny.
+  }
+}

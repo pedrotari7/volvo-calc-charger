@@ -12,17 +12,20 @@
 		"typecheck": "tsc --noEmit && pnpm --filter frontend typecheck && pnpm --filter backend typecheck",
 		"typecheck:root": "tsc --noEmit",
 		"test": "vitest run",
-		"test:backend": "pnpm --filter backend test",
-		"test:rules": "vitest run --config rules/vitest.config.ts",
+		"test:backend": "scripts/emulators.sh 'pnpm --filter backend test' --only firestore --project demo-volvo",
+		"test:rules": "scripts/emulators.sh 'vitest run --config rules/vitest.config.ts' --only firestore --project demo-volvo",
 		"test:e2e": "playwright test",
 		"format": "prettier --write --cache .",
-		"emulators": "firebase emulators:start",
+		"emulators": "scripts/emulators.sh",
 		"seed": "pnpm --filter backend seed",
 		"preinstall": "npx only-allow pnpm"
 	},
 	"devDependencies": {
+		"@firebase/rules-unit-testing": "5.0.0",
 		"@types/node": "24.12.4",
 		"@vitest/coverage-istanbul": "^5.0.1",
+		"firebase": "12.13.0",
+		"firebase-tools": "15.18.0",
 		"prettier": "3.8.3",
 		"typescript": "5.9.3",
 		"vitest": "^5.0.0"
