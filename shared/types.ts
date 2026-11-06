@@ -77,7 +77,8 @@ export interface PricedSession extends Session {
 export interface PeakHour {
 	hourStartUtc: IsoUtc;
 	kW: number;
-	sessionId: string;
+	sessionId: string; // session with the largest share of this hour
+	parts?: Record<string, number>; // sessionId -> kWh, when several sessions share this clock hour
 }
 export interface MonthPeaks {
 	month: string;
