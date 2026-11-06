@@ -53,12 +53,20 @@ export function peakShares(peaks: MonthPeaks): Record<string, number> {
 	return out;
 }
 
+/**
+ * Fee increase for `peaks.month` if `extraHours` were charged. Extra hours whose local month
+ * differs from `peaks.month` are ignored; callers needing another month's increase must call
+ * this with that month's MonthPeaks.
+ */
 export function peakIncrease(peaks: MonthPeaks, extraHours: SessionHour[], tariff: Tariff): number {
 	const hours = new Map<string, Record<string, number>>();
 	for (const h of peaks.top3) {
 		hours.set(h.hourStartUtc, h.parts ? { ...h.parts } : { [h.sessionId]: h.kW });
 	}
-	for (const e of extraHours) addTo(hours, e.hourStartUtc, EXTRA_ID, e.kWh);
+	for (const e of extraHours) {
+		if (monthKey(e.hourStartUtc) !== peaks.month) continue;
+		addTo(hours, e.hourStartUtc, EXTRA_ID, e.kWh);
+	}
 	const fee = feeFor(top3Of(hours).map((h) => h.kW), tariff);
 	return Math.max(0, fee - peaks.estimatedFee);
 }

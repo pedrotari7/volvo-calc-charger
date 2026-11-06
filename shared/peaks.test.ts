@@ -83,4 +83,16 @@ describe('peakIncrease', () => {
 		const p = computeMonthPeaks('2026-11', [s], TEST_TARIFF);
 		expect(peakIncrease(p, [hr(1, 3)], TEST_TARIFF)).toBeCloseTo((3 / 3) * perKw, 6);
 	});
+	it('ignores extra hours from another local month', () => {
+		const s = session('S', [['2026-10-10T10:00:00.000Z', 10], ['2026-10-11T10:00:00.000Z', 10], ['2026-10-12T10:00:00.000Z', 10]]);
+		const p = computeMonthPeaks('2026-10', [s], TEST_TARIFF);
+		expect(peakIncrease(p, [{ hourStartUtc: '2026-10-31T23:00:00.000Z', kWh: 11 }], TEST_TARIFF)).toBe(0);
+	});
+	it('adds to a stored top hour that has parts', () => {
+		const A = session('A', [['2026-11-02T10:00:00.000Z', 6]]);
+		const B = session('B', [['2026-11-02T10:00:00.000Z', 4]]);
+		const p = computeMonthPeaks('2026-11', [A, B], TEST_TARIFF);
+		expect(p.top3[0]!.parts).toEqual({ A: 6, B: 4 });
+		expect(peakIncrease(p, [{ hourStartUtc: '2026-11-02T10:00:00.000Z', kWh: 2 }], TEST_TARIFF)).toBeCloseTo((2 / 3) * perKw, 6);
+	});
 });
