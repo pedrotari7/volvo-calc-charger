@@ -1,0 +1,176 @@
+{
+  "Pages": 1,
+  "TotalCount": 5,
+  "Data": [
+    {
+      "Id": "5e1f0c7a-3b92-4d6e-a8f4-1c7d92b0e3a5",
+      "DeviceId": "c3b7e1a2-5d4f-4e6a-9b1c-2f8a7d6e5c40",
+      "StartDateTime": "2026-11-02T23:02:05.187",
+      "EndDateTime": "2026-11-03T08:30:39.31",
+      "Energy": 11.941,
+      "EnergyDetails": [
+        {
+          "Timestamp": "2026-11-02T23:02:04.856+00:00",
+          "Energy": 0
+        },
+        {
+          "Timestamp": "2026-11-03T00:00:00.179+00:00",
+          "Energy": 9.930000000000064
+        },
+        {
+          "Timestamp": "2026-11-03T01:00:00.082+00:00",
+          "Energy": 2.0109999999999673
+        },
+        {
+          "Timestamp": "2026-11-03T08:30:39.013+00:00",
+          "Energy": 0
+        }
+      ],
+      "UserFullName": "x",
+      "UserEmail": "x",
+      "UserUserName": "x",
+      "DeviceName": "x",
+      "ChargerId": "a91d4f3e-7b2c-4c8d-8e15-6f0b3a9d2e71"
+    },
+    {
+      "Id": "0b8d2e64-91a7-4f3c-b5e0-7a4c1d83f926",
+      "DeviceId": "c3b7e1a2-5d4f-4e6a-9b1c-2f8a7d6e5c40",
+      "StartDateTime": "2026-10-24T19:36:24.41",
+      "EndDateTime": "2026-10-25T12:00:33.563",
+      "Energy": 42.104,
+      "EnergyDetails": [
+        {
+          "Timestamp": "2026-10-24T19:36:24.410+00:00",
+          "Energy": 0
+        },
+        {
+          "Timestamp": "2026-10-24T20:00:00.104+00:00",
+          "Energy": 3.0
+        },
+        {
+          "Timestamp": "2026-10-24T21:00:00.211+00:00",
+          "Energy": 7.2
+        },
+        {
+          "Timestamp": "2026-10-24T22:00:00.098+00:00",
+          "Energy": 7.2
+        },
+        {
+          "Timestamp": "2026-10-24T23:00:00.152+00:00",
+          "Energy": 7.2
+        },
+        {
+          "Timestamp": "2026-10-25T00:00:00.130+00:00",
+          "Energy": 7.2
+        },
+        {
+          "Timestamp": "2026-10-25T01:00:00.077+00:00",
+          "Energy": 7.2
+        },
+        {
+          "Timestamp": "2026-10-25T12:00:33.250+00:00",
+          "Energy": 3.104
+        }
+      ],
+      "UserFullName": "x",
+      "UserEmail": "x",
+      "UserUserName": "x",
+      "DeviceName": "x",
+      "ChargerId": "a91d4f3e-7b2c-4c8d-8e15-6f0b3a9d2e71"
+    },
+    {
+      "Id": "9c4a7f15-e2d8-4b01-8a63-d5f09e1b7c38",
+      "DeviceId": "c3b7e1a2-5d4f-4e6a-9b1c-2f8a7d6e5c40",
+      "StartDateTime": "2026-10-24T19:25:50.997",
+      "EndDateTime": "2026-10-24T19:36:07.607",
+      "Energy": 0.0,
+      "EnergyDetails": [
+        {
+          "Timestamp": "2026-10-24T19:25:50.640+00:00",
+          "Energy": 0
+        },
+        {
+          "Timestamp": "2026-10-24T19:36:07.300+00:00",
+          "Energy": 0
+        }
+      ],
+      "UserFullName": "x",
+      "UserEmail": "x",
+      "UserUserName": "x",
+      "DeviceName": "x",
+      "ChargerId": "a91d4f3e-7b2c-4c8d-8e15-6f0b3a9d2e71"
+    },
+    {
+      "Id": "7d3e9b28-4c61-4a0f-9e57-b2a18c6f4d03",
+      "DeviceId": "c3b7e1a2-5d4f-4e6a-9b1c-2f8a7d6e5c40",
+      "StartDateTime": "2026-10-24T05:17:23.853",
+      "EndDateTime": "2026-10-24T08:14:13.98",
+      "Energy": 11.982,
+      "EnergyDetails": [
+        {
+          "Timestamp": "2026-10-24T05:17:23.853+00:00",
+          "Energy": 0
+        },
+        {
+          "Timestamp": "2026-10-24T06:00:00.120+00:00",
+          "Energy": 4.1
+        },
+        {
+          "Timestamp": "2026-10-24T07:00:00.189+00:00",
+          "Energy": 4.9
+        },
+        {
+          "Timestamp": "2026-10-24T08:00:00.066+00:00",
+          "Energy": 2.5
+        },
+        {
+          "Timestamp": "2026-10-24T08:14:13.700+00:00",
+          "Energy": 0.482
+        }
+      ],
+      "UserFullName": "x",
+      "UserEmail": "x",
+      "UserUserName": "x",
+      "DeviceName": "x",
+      "ChargerId": "a91d4f3e-7b2c-4c8d-8e15-6f0b3a9d2e71"
+    },
+    {
+      "Id": "f26b8a40-d715-4e93-a1c8-3e90b7d52f64",
+      "DeviceId": "c3b7e1a2-5d4f-4e6a-9b1c-2f8a7d6e5c40",
+      "StartDateTime": "2026-10-21T09:43:45.963",
+      "EndDateTime": "2026-10-21T13:49:55.943",
+      "Energy": 15.221,
+      "EnergyDetails": [
+        {
+          "Timestamp": "2026-10-21T09:43:45.963+00:00",
+          "Energy": 0
+        },
+        {
+          "Timestamp": "2026-10-21T10:00:00.141+00:00",
+          "Energy": 2.1
+        },
+        {
+          "Timestamp": "2026-10-21T11:00:00.205+00:00",
+          "Energy": 4.8
+        },
+        {
+          "Timestamp": "2026-10-21T12:00:00.093+00:00",
+          "Energy": 4.8
+        },
+        {
+          "Timestamp": "2026-10-21T13:00:00.317+00:00",
+          "Energy": 3.2
+        },
+        {
+          "Timestamp": "2026-10-21T13:49:55.640+00:00",
+          "Energy": 0.321
+        }
+      ],
+      "UserFullName": "x",
+      "UserEmail": "x",
+      "UserUserName": "x",
+      "DeviceName": "x",
+      "ChargerId": "a91d4f3e-7b2c-4c8d-8e15-6f0b3a9d2e71"
+    }
+  ]
+}
