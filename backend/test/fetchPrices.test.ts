@@ -62,6 +62,15 @@ describe('runFetchPrices', () => {
 		expect(onTomorrowArrived).toHaveBeenCalledTimes(1);
 	});
 
+	it('isolates a throwing onTomorrowArrived but still reports the run as failed', async () => {
+		const onTomorrowArrived = vi.fn(async () => {
+			throw new Error('boom');
+		});
+		await expect(runFetchPrices(NOW, { fetchFn: stubFetch(), onTomorrowArrived })).rejects.toThrow(/tomorrow hook failed/);
+		expect(onTomorrowArrived).toHaveBeenCalledTimes(1);
+		expect((await db.doc('prices/2026-11-04').get()).exists).toBe(true);
+	});
+
 	it('survives a 404 for tomorrow', async () => {
 		const onTomorrowArrived = vi.fn(async () => {});
 		const r = await runFetchPrices(NOW, { fetchFn: stubFetch(['2026-11-04']), onTomorrowArrived });

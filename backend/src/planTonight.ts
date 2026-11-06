@@ -43,7 +43,9 @@ export async function runPlanTonight(nowUtc: IsoUtc): Promise<Plan | null> {
 	const plan = computePlan({ nowUtc, batteryPercent: battery, settings, days, tariffs, peaksByMonth });
 	await db.doc(`plans/${plan.date}`).set(plan);
 
-	if (plan.recommendation || plan.chargeNow) {
+	// The plan is always refreshed; the reminder waits for the evening so a ~13:30 price arrival
+	// does not consume the day's dedupe key.
+	if ((plan.recommendation || plan.chargeNow) && localParts(nowUtc).hour >= 18) {
 		const charger = (await db.doc('charger/state').get()).data() as ChargerState | undefined;
 		if (charger?.pluggedIn !== true) {
 			await sendPush({

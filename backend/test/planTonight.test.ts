@@ -5,8 +5,9 @@ import type { PriceDay } from '../../shared/types';
 import { db } from '../src/lib/firebase';
 import { runPlanTonight } from '../src/planTonight';
 
-const push = vi.hoisted(() => vi.fn(async () => 'sent'));
-vi.mock('../src/lib/push', () => ({ sendPush: push }));
+// Real sendPush (dedupe transaction included); only the FCM client is faked.
+const send = vi.hoisted(() => vi.fn(async (m: { tokens: string[] }) => ({ responses: m.tokens.map(() => ({ success: true })) })));
+vi.mock('firebase-admin/messaging', () => ({ getMessaging: () => ({ sendEachForMulticast: send }) }));
 
 const HOUR = 3_600_000;
 const NOW = '2026-11-03T17:00:00.000Z'; // 18:00 local, Tuesday
@@ -31,6 +32,7 @@ function priceDay(date: string, price: (localHour: number) => number): PriceDay 
 const cheapNight = (h: number) => (h >= 1 && h < 4 ? 0.1 : 2);
 
 async function seed({ battery = 62, pluggedIn = false, tomorrow = false } = {}) {
+	await db.doc('users/u1/pushTokens/tok1').set({ createdAt: 'x' });
 	await db.doc('tariffs/t1').set(TEST_TARIFF);
 	await db.doc('prices/2026-11-03').set(priceDay('2026-11-03', () => 2));
 	if (tomorrow) await db.doc('prices/2026-11-04').set(priceDay('2026-11-04', cheapNight));
@@ -39,8 +41,8 @@ async function seed({ battery = 62, pluggedIn = false, tomorrow = false } = {}) 
 }
 
 beforeEach(async () => {
-	push.mockClear();
-	for (const c of ['prices', 'tariffs', 'car', 'charger', 'config', 'peaks', 'plans']) {
+	send.mockClear();
+	for (const c of ['prices', 'tariffs', 'car', 'charger', 'config', 'peaks', 'plans', 'private', 'users']) {
 		await db.recursiveDelete(db.collection(c));
 	}
 });
@@ -51,13 +53,16 @@ describe('runPlanTonight', () => {
 		const plan = await runPlanTonight(NOW);
 		expect(plan?.basis).toBe('tomorrow');
 		expect((await db.doc('plans/2026-11-03').get()).data()).toEqual(JSON.parse(JSON.stringify(plan)));
-		expect(push).toHaveBeenCalledTimes(1);
-		const arg = (push.mock.calls[0] as unknown as [Record<string, string>])[0];
-		expect(arg).toMatchObject({ kind: 'plugIn', title: 'Charge tonight', dedupeKey: 'plugIn:2026-11-03', url: '/' });
-		expect(arg.body).toMatch(/^62% → 80%: plug in, cheapest 0\d:00–0\d:00, ≈ \d+ kr$/);
+		expect(send).toHaveBeenCalledTimes(1);
+		const arg = (send.mock.calls[0] as unknown as [{ notification: { title: string; body: string }; data: Record<string, string> }])[0];
+		expect(arg.notification.title).toBe('Charge tonight');
+		expect(arg.data).toEqual({ url: '/', kind: 'plugIn' });
+		expect((await db.doc('private/notified/keys/plugIn%3A2026-11-03').get()).exists).toBe(true);
+		const body = arg.notification.body;
+		expect(body).toMatch(/^62% → 80%: plug in, cheapest 0\d:00–0\d:00, ≈ \d+ kr$/);
 		const r = plan!.recommendation!;
 		const hhmm = (iso: string) => `${pad(localParts(iso).hour)}:00`;
-		expect(arg.body).toBe(
+		expect(body).toBe(
 			`62% → 80%: plug in, cheapest ${hhmm(r.start)}–${hhmm(r.end)}, ≈ ${Math.round(r.cost)} kr`
 		);
 	});
@@ -66,16 +71,24 @@ describe('runPlanTonight', () => {
 		await seed({ tomorrow: true, pluggedIn: true });
 		await runPlanTonight(NOW);
 		expect((await db.doc('plans/2026-11-03').get()).exists).toBe(true);
-		expect(push).not.toHaveBeenCalled();
+		expect(send).not.toHaveBeenCalled();
 	});
 
-	it('is called again the same evening and relies on the push dedupe key', async () => {
+	it('sends one push for two runs on the same evening', async () => {
 		await seed({ tomorrow: true });
 		await runPlanTonight(NOW);
+		await runPlanTonight('2026-11-03T17:30:00.000Z');
+		expect(send).toHaveBeenCalledTimes(1);
+	});
+
+	it('writes the plan at 13:30 local without a push, then exactly one push at 18:00', async () => {
+		await seed({ tomorrow: true });
+		const early = await runPlanTonight('2026-11-03T12:30:00.000Z');
+		expect(early?.recommendation).not.toBeNull();
+		expect((await db.doc('plans/2026-11-03').get()).exists).toBe(true);
+		expect(send).not.toHaveBeenCalled();
 		await runPlanTonight(NOW);
-		for (const c of push.mock.calls as unknown as Array<[{ dedupeKey: string }]>) {
-			expect(c[0].dedupeKey).toBe('plugIn:2026-11-03');
-		}
+		expect(send).toHaveBeenCalledTimes(1);
 	});
 
 	it('overwrites the plan with basis tomorrow once tomorrow arrives', async () => {
@@ -83,8 +96,10 @@ describe('runPlanTonight', () => {
 		const first = await runPlanTonight(NOW);
 		expect(first?.basis).toBe('today');
 		await db.doc('prices/2026-11-04').set(priceDay('2026-11-04', cheapNight));
+		expect(send).toHaveBeenCalledTimes(1);
 		await runPlanTonight('2026-11-03T18:30:00.000Z');
 		expect((await db.doc('plans/2026-11-03').get()).data()?.basis).toBe('tomorrow');
+		expect(send).toHaveBeenCalledTimes(1);
 	});
 
 	it('sends no push when the battery is above target', async () => {
@@ -92,7 +107,7 @@ describe('runPlanTonight', () => {
 		const plan = await runPlanTonight(NOW);
 		expect(plan?.recommendation).toBeNull();
 		expect(plan?.chargeNow).toBe(false);
-		expect(push).not.toHaveBeenCalled();
+		expect(send).not.toHaveBeenCalled();
 	});
 
 	it('chargeNow body when there is no time to wait', async () => {
@@ -100,8 +115,8 @@ describe('runPlanTonight', () => {
 		await db.doc('config/settings').set({ readyBy: '19:00' });
 		const plan = await runPlanTonight(NOW);
 		expect(plan?.chargeNow).toBe(true);
-		const arg = (push.mock.calls[0] as unknown as [Record<string, string>])[0];
-		expect(arg.body).toBe('20% → 80%: plug in now, not enough time to wait for cheap hours');
+		const arg = (send.mock.calls[0] as unknown as [{ notification: { body: string } }])[0];
+		expect(arg.notification.body).toBe('20% → 80%: plug in now, not enough time to wait for cheap hours');
 	});
 
 	it('returns null and writes nothing without battery data', async () => {
@@ -109,6 +124,6 @@ describe('runPlanTonight', () => {
 		await db.doc('car/state').delete();
 		expect(await runPlanTonight(NOW)).toBeNull();
 		expect((await db.collection('plans').get()).empty).toBe(true);
-		expect(push).not.toHaveBeenCalled();
+		expect(send).not.toHaveBeenCalled();
 	});
 });

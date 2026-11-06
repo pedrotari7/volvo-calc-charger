@@ -44,8 +44,19 @@ export async function runFetchPrices(
 	const repriced = pending;
 
 	const tomorrowArrived = written.includes(tomorrow);
-	if (tomorrowArrived) await deps.onTomorrowArrived();
-	if (failed.length > 0) throw new Error(`fetchPrices: failed days: ${failed.join(', ')}`);
+	let hookFailed = false;
+	if (tomorrowArrived) {
+		try {
+			await deps.onTomorrowArrived();
+		} catch (e) {
+			hookFailed = true;
+			logger.error('fetchPrices: onTomorrowArrived failed', { message: e instanceof Error ? e.message : String(e) });
+		}
+	}
+	if (failed.length > 0 || hookFailed) {
+		const parts = [...(failed.length > 0 ? [`failed days: ${failed.join(', ')}`] : []), ...(hookFailed ? ['tomorrow hook failed'] : [])];
+		throw new Error(`fetchPrices: ${parts.join('; ')}`);
+	}
 	return { written, repriced, tomorrowArrived };
 }
 
