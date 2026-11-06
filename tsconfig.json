@@ -1,0 +1,24 @@
+{
+	"compilerOptions": {
+		"target": "es2022",
+		"lib": ["dom", "dom.iterable", "esnext"],
+		"allowJs": false,
+		"skipLibCheck": true,
+		"strict": true,
+		"forceConsistentCasingInFileNames": true,
+		"noEmit": true,
+		"esModuleInterop": true,
+		"module": "esnext",
+		"moduleResolution": "bundler",
+		"resolveJsonModule": true,
+		"isolatedModules": true,
+		"incremental": true,
+		"baseUrl": ".",
+		"types": ["vitest/globals", "node"],
+		"paths": {
+			"@shared/*": ["./shared/*"]
+		}
+	},
+	"include": ["shared", "e2e", "rules", "*.ts"],
+	"exclude": ["node_modules"]
+}
