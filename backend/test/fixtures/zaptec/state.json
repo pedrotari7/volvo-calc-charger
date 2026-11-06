@@ -1,0 +1,9 @@
+{
+  "_source": "documented",
+  "data": [
+    { "StateId": 702, "ValueAsString": "1", "Timestamp": "2026-11-03T08:30:39.013" },
+    { "StateId": 710, "ValueAsString": "3", "Timestamp": "2026-11-03T08:29:00.000" },
+    { "StateId": 513, "ValueAsString": "11040", "Timestamp": "2026-11-03T08:29:00.000" },
+    { "StateId": 553, "ValueAsString": "4.250", "Timestamp": "2026-11-03T08:29:00.000" }
+  ]
+}
