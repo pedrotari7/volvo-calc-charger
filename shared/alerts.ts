@@ -51,7 +51,9 @@ function label(issue: string): string {
 	return `${kind} open`;
 }
 
+/** Callers pass non-empty issues; an empty list yields ''. */
 export function leftOpenMessage(issues: string[]): string {
+	if (issues.length === 0) return '';
 	const unlocked = issues.includes('unlocked');
 	const rest = issues.filter((i) => i !== 'unlocked').map(label);
 	if (unlocked) return [`${CAR_NAME} is unlocked`, ...rest].join(' · ');

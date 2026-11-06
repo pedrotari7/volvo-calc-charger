@@ -77,5 +77,6 @@ describe('leftOpenMessage', () => {
 			'XC40: front right door open · tailgate open · sunroof open · hood open',
 		);
 		expect(leftOpenMessage(['unlocked'])).toBe('XC40 is unlocked');
+		expect(leftOpenMessage([])).toBe('');
 	});
 });

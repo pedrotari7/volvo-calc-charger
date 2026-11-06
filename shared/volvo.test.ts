@@ -101,6 +101,14 @@ describe('parseCarState', () => {
 		expect(c.battery?.value.estFullAt).toBe('2026-11-06T19:30:00.000Z');
 	});
 
+	it('missing electricRange gives rangeKm null, not 0', () => {
+		const e = JSON.parse(JSON.stringify(energy));
+		delete e.data.electricRange;
+		const c = parseCarState({ vehicles, energy: e }, NOW);
+		expect(c.battery?.value.percent).toBe(62);
+		expect(c.battery?.value.rangeKm).toBeNull();
+	});
+
 	it('lists non-OK warnings', () => {
 		const w = JSON.parse(JSON.stringify(warnings));
 		w.data.brakeLightLeftWarning.value = 'FAILURE';

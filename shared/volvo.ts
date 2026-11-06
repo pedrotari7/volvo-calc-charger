@@ -106,7 +106,7 @@ function parseBattery(energy: unknown, now: IsoUtc): CarState['battery'] {
 		chargingStatus === 'CHARGING' && m !== null && m > 0
 			? (new Date(Date.parse(newest) + m * 60_000).toISOString() as IsoUtc)
 			: null;
-	return timed({ percent, rangeKm: num(range) ?? 0, chargingStatus, estFullAt }, [level, range, status, mins], now);
+	return timed({ percent, rangeKm: num(range), chargingStatus, estFullAt }, [level, range, status, mins], now);
 }
 
 function parseOdometer(odometer: unknown, now: IsoUtc): CarState['odometerKm'] {

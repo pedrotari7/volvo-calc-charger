@@ -112,7 +112,7 @@ export interface Timed<T> {
 }
 export interface CarState {
 	vinLast4: string;
-	battery: Timed<{ percent: number; rangeKm: number; chargingStatus: string; estFullAt: IsoUtc | null }> | null;
+	battery: Timed<{ percent: number; rangeKm: number | null; chargingStatus: string; estFullAt: IsoUtc | null }> | null;
 	locked: Timed<boolean> | null;
 	// keys: door:frontLeft, window:rearLeft, tailgate, hood, sunroof...
 	openings: Timed<Record<string, 'open' | 'closed'>> | null;
