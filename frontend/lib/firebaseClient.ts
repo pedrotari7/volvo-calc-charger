@@ -40,7 +40,7 @@ export const getDb = (): Firestore => {
 		dbInstance = initializeFirestore(getFirebaseApp(), {
 			localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
 		});
-		if (emulatorsOn()) connectFirestoreEmulator(dbInstance, '127.0.0.1', 8080);
+		if (emulatorsOn()) connectFirestoreEmulator(dbInstance, '127.0.0.1', 8085);
 	}
 
 	return dbInstance;

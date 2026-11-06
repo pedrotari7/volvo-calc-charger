@@ -14,7 +14,7 @@ const asStranger = () =>
 
 const READABLE = [
 	'car/state',
-	'car/odometer/days/2026-11-03',
+	'odometer/2026-11-03',
 	'sessions/a',
 	'prices/2026-11-03',
 	'plans/2026-11-03',
@@ -30,7 +30,7 @@ const CLIENT_WRITABLE = ['config/settings', 'tariffs/t1', 'config/allowlist', 'u
 const FUNCTION_OWNED = [
 	'sessions/a',
 	'car/state',
-	'car/odometer/days/2026-11-03',
+	'odometer/2026-11-03',
 	'plans/x',
 	'peaks/x',
 	'prices/x',
@@ -86,6 +86,10 @@ describe('allowlisted user', () => {
 		await assertFails(getDoc(doc(asMe(), 'users/other/pushTokens/tok')));
 	});
 
+	it('cannot read unlisted car docs', async () => {
+		await assertFails(getDoc(doc(asMe(), 'car/other')));
+	});
+
 	it('is denied on unlisted collections', async () => {
 		await assertFails(getDoc(doc(asMe(), 'misc/x')));
 		await assertFails(setDoc(doc(asMe(), 'misc/x'), { v: 1 }));
@@ -103,6 +107,11 @@ describe('non-allowlisted callers', () => {
 
 	it('unverified email cannot read car/state', async () => {
 		await assertFails(getDoc(doc(asMe(false), 'car/state')));
+	});
+
+	it('missing allowlist doc denies reads', async () => {
+		await testEnv.withSecurityRulesDisabled((ctx) => deleteDoc(doc(ctx.firestore(), 'config/allowlist')));
+		await assertFails(getDoc(doc(asMe(), 'car/state')));
 	});
 
 	it('unauthenticated cannot read car/state', async () => {

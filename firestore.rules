@@ -35,9 +35,10 @@ service cloud.firestore {
     match /charger/state {
       allow read: if isAllowed();
     }
-    // car/state plus the odometer history (a subcollection under a car doc,
-    // since 'car/odometer/{date}' is not a valid Firestore doc path).
-    match /car/{document=**} {
+    match /car/state {
+      allow read: if isAllowed();
+    }
+    match /odometer/{id} {
       allow read: if isAllowed();
     }
     match /plans/{id} {

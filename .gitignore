@@ -8,7 +8,7 @@ coverage/
 .superpowers/
 *.tsbuildinfo
 !.env.example
-lib/
+/backend/lib/
 firestore-debug.log
 ui-debug.log
 *-debug.log
