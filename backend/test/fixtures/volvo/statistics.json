@@ -1,0 +1,47 @@
+{
+	"_source": "doc-shaped",
+	"status": 200,
+	"operationId": "getStatistics",
+	"data": {
+		"averageEnergyConsumption": {
+			"value": 19.4,
+			"unit": "kWh/100km",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		},
+		"averageEnergyConsumptionAutomatic": {
+			"value": 19.1,
+			"unit": "kWh/100km",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		},
+		"averageSpeed": {
+			"value": 48,
+			"unit": "km/h",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		},
+		"averageSpeedAutomatic": {
+			"value": 51,
+			"unit": "km/h",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		},
+		"tripMeterManualDistance": {
+			"value": 312.4,
+			"unit": "km",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		},
+		"tripMeterAutomaticDistance": {
+			"value": 17.2,
+			"unit": "km",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		},
+		"distanceToEmptyBattery": {
+			"value": 231,
+			"unit": "km",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		},
+		"distanceToEmptyTank": {
+			"value": 0,
+			"unit": "km",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		}
+	}
+}

@@ -1,0 +1,32 @@
+{
+	"_source": "doc-shaped",
+	"status": 200,
+	"operationId": "getEnergyCapabilities",
+	"data": {
+		"isSupported": true,
+		"batteryChargeLevel": {
+			"isSupported": true
+		},
+		"electricRange": {
+			"isSupported": true
+		},
+		"chargerConnectionStatus": {
+			"isSupported": true
+		},
+		"chargingStatus": {
+			"isSupported": true
+		},
+		"chargingType": {
+			"isSupported": true
+		},
+		"chargerPowerStatus": {
+			"isSupported": true
+		},
+		"estimatedChargingTimeToTargetBatteryChargeLevel": {
+			"isSupported": true
+		},
+		"targetBatteryChargeLevel": {
+			"isSupported": true
+		}
+	}
+}

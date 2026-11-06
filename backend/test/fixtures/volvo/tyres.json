@@ -1,0 +1,23 @@
+{
+	"_source": "doc-shaped",
+	"status": 200,
+	"operationId": "getTyresStatus",
+	"data": {
+		"frontLeft": {
+			"value": "NO_WARNING",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		},
+		"frontRight": {
+			"value": "NO_WARNING",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		},
+		"rearLeft": {
+			"value": "NO_WARNING",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		},
+		"rearRight": {
+			"value": "NO_WARNING",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		}
+	}
+}

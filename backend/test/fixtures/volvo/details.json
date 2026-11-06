@@ -1,0 +1,22 @@
+{
+	"_source": "doc-shaped",
+	"status": 200,
+	"operationId": "getVehicleDetails",
+	"data": {
+		"vin": "YV1TESTVIN0000001",
+		"modelYear": 2023,
+		"gearbox": "AUTOMATIC",
+		"fuelType": "ELECTRIC",
+		"externalColour": "Fjord Blue",
+		"batteryCapacityKWH": 78,
+		"images": {
+			"exteriorImageUrl": "https://example.invalid/exterior.png",
+			"internalImageUrl": "https://example.invalid/interior.png"
+		},
+		"descriptions": {
+			"model": "XC40",
+			"upholstery": "R_CHARCOAL",
+			"steering": "LEFT"
+		}
+	}
+}

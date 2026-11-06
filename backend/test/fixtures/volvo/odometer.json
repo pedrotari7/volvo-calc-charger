@@ -1,0 +1,12 @@
+{
+	"_source": "doc-shaped",
+	"status": 200,
+	"operationId": "getOdometer",
+	"data": {
+		"odometer": {
+			"value": 23456,
+			"unit": "km",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		}
+	}
+}

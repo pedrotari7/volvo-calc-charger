@@ -1,0 +1,30 @@
+{
+	"_source": "doc-shaped",
+	"status": 200,
+	"operationId": "getDiagnostics",
+	"data": {
+		"serviceWarning": {
+			"value": "NO_WARNING",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		},
+		"engineHoursToService": {
+			"value": 1200,
+			"unit": "h",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		},
+		"distanceToService": {
+			"value": 14200,
+			"unit": "km",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		},
+		"timeToService": {
+			"value": 11,
+			"unit": "months",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		},
+		"washerFluidLevelWarning": {
+			"value": "NO_WARNING",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		}
+	}
+}

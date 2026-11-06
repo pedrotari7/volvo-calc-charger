@@ -1,0 +1,87 @@
+{
+	"_source": "doc-shaped",
+	"status": 200,
+	"operationId": "getWarnings",
+	"data": {
+		"brakeLightCenterWarning": {
+			"value": "NO_WARNING",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		},
+		"brakeLightLeftWarning": {
+			"value": "NO_WARNING",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		},
+		"brakeLightRightWarning": {
+			"value": "NO_WARNING",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		},
+		"fogLightFrontWarning": {
+			"value": "NO_WARNING",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		},
+		"fogLightRearWarning": {
+			"value": "NO_WARNING",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		},
+		"hazardLightsWarning": {
+			"value": "NO_WARNING",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		},
+		"highBeamLeftWarning": {
+			"value": "NO_WARNING",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		},
+		"highBeamRightWarning": {
+			"value": "NO_WARNING",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		},
+		"lowBeamLeftWarning": {
+			"value": "NO_WARNING",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		},
+		"lowBeamRightWarning": {
+			"value": "NO_WARNING",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		},
+		"positionLightFrontLeftWarning": {
+			"value": "NO_WARNING",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		},
+		"positionLightFrontRightWarning": {
+			"value": "NO_WARNING",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		},
+		"positionLightRearLeftWarning": {
+			"value": "NO_WARNING",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		},
+		"positionLightRearRightWarning": {
+			"value": "NO_WARNING",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		},
+		"registrationPlateLightWarning": {
+			"value": "NO_WARNING",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		},
+		"sideMarkLightsWarning": {
+			"value": "NO_WARNING",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		},
+		"turnIndicationFrontLeftWarning": {
+			"value": "NO_WARNING",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		},
+		"turnIndicationFrontRightWarning": {
+			"value": "NO_WARNING",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		},
+		"turnIndicationRearLeftWarning": {
+			"value": "NO_WARNING",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		},
+		"turnIndicationRearRightWarning": {
+			"value": "NO_WARNING",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		}
+	}
+}

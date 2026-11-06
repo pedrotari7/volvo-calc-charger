@@ -3,6 +3,8 @@ import { getApps, initializeApp } from 'firebase/app';
 import type { Auth } from 'firebase/auth';
 import { connectAuthEmulator, getAuth } from 'firebase/auth';
 import type { Firestore } from 'firebase/firestore';
+import type { Functions } from 'firebase/functions';
+import { getFunctions } from 'firebase/functions';
 import {
 	connectFirestoreEmulator,
 	initializeFirestore,
@@ -45,3 +47,5 @@ export const getDb = (): Firestore => {
 
 	return dbInstance;
 };
+
+export const getFunctionsClient = (): Functions => getFunctions(getFirebaseApp(), 'europe-west1');

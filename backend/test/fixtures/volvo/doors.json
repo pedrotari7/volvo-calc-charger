@@ -1,0 +1,39 @@
+{
+	"_source": "doc-shaped",
+	"status": 200,
+	"operationId": "getDoorsStatus",
+	"data": {
+		"centralLock": {
+			"value": "UNLOCKED",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		},
+		"frontLeftDoor": {
+			"value": "CLOSED",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		},
+		"frontRightDoor": {
+			"value": "CLOSED",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		},
+		"rearLeftDoor": {
+			"value": "CLOSED",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		},
+		"rearRightDoor": {
+			"value": "CLOSED",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		},
+		"hood": {
+			"value": "CLOSED",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		},
+		"tailgate": {
+			"value": "CLOSED",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		},
+		"tankLid": {
+			"value": "CLOSED",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		}
+	}
+}

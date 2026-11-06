@@ -1,0 +1,11 @@
+{
+	"_source": "doc-shaped",
+	"status": 200,
+	"operationId": "getCommandAccessibility",
+	"data": {
+		"availabilityStatus": {
+			"value": "AVAILABLE",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		}
+	}
+}

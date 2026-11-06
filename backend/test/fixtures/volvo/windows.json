@@ -1,0 +1,27 @@
+{
+	"_source": "doc-shaped",
+	"status": 200,
+	"operationId": "getWindowsStatus",
+	"data": {
+		"frontLeftWindow": {
+			"value": "CLOSED",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		},
+		"frontRightWindow": {
+			"value": "CLOSED",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		},
+		"rearLeftWindow": {
+			"value": "OPEN",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		},
+		"rearRightWindow": {
+			"value": "CLOSED",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		},
+		"sunroof": {
+			"value": "CLOSED",
+			"timestamp": "2026-11-06T18:00:00.000Z"
+		}
+	}
+}

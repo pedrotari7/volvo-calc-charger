@@ -1,0 +1,23 @@
+{
+	"_source": "doc-shaped",
+	"status": 200,
+	"operationId": "getCommands",
+	"data": [
+		{
+			"command": "LOCK",
+			"href": "/connected-vehicle/v2/vehicles/YV1TESTVIN0000001/commands/lock"
+		},
+		{
+			"command": "LOCK_REDUCED_GUARD",
+			"href": "/connected-vehicle/v2/vehicles/YV1TESTVIN0000001/commands/lock-reduced-guard"
+		},
+		{
+			"command": "CLIMATIZATION_START",
+			"href": "/connected-vehicle/v2/vehicles/YV1TESTVIN0000001/commands/climatization-start"
+		},
+		{
+			"command": "CLIMATIZATION_STOP",
+			"href": "/connected-vehicle/v2/vehicles/YV1TESTVIN0000001/commands/climatization-stop"
+		}
+	]
+}
