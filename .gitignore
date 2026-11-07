@@ -12,3 +12,7 @@ coverage/
 firestore-debug.log
 ui-debug.log
 *-debug.log
+
+test-results/
+playwright-report/
+.playwright/

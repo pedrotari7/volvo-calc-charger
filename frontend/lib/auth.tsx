@@ -3,7 +3,14 @@
 import type { ReactNode } from 'react';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { User } from 'firebase/auth';
-import { GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut as fbSignOut } from 'firebase/auth';
+import {
+	GoogleAuthProvider,
+	onAuthStateChanged,
+	signInWithEmailAndPassword,
+	signInWithPopup,
+	signOut as fbSignOut,
+} from 'firebase/auth';
+import { DEV_USER } from '@shared/devUser';
 import { doc, getDoc } from 'firebase/firestore';
 import { getAuthClient, getDb } from './firebaseClient';
 
@@ -14,6 +21,8 @@ interface AuthState {
 	/** `null` while checking, `false` when the email is not in `config/allowlist`. */
 	allowed: boolean | null;
 	signIn(): Promise<void>;
+	/** Email/password sign-in as the seeded dev user. Only meaningful against the Auth emulator. */
+	signInDev(): Promise<void>;
 	signOut(): Promise<void>;
 }
 
@@ -22,6 +31,7 @@ const AuthContext = createContext<AuthState>({
 	ready: false,
 	allowed: null,
 	signIn: async () => {},
+	signInDev: async () => {},
 	signOut: async () => {},
 });
 
@@ -71,14 +81,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 		await signInWithPopup(getAuthClient(), provider);
 	}, []);
 
+	const signInDev = useCallback(async () => {
+		await signInWithEmailAndPassword(getAuthClient(), DEV_USER.email, DEV_USER.password);
+	}, []);
+
 	const signOut = useCallback(() => fbSignOut(getAuthClient()), []);
 
 	const value = useMemo(
-		() => ({ user, ready, allowed, signIn, signOut }),
-		[user, ready, allowed, signIn, signOut]
+		() => ({ user, ready, allowed, signIn, signInDev, signOut }),
+		[user, ready, allowed, signIn, signInDev, signOut]
 	);
 
 	return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
+
+/** The dev button is shown only when the app is wired to the emulators. */
+export const devSignInEnabled = () => process.env.NEXT_PUBLIC_USE_EMULATORS === '1';
 
 export const useAuth = () => useContext(AuthContext);

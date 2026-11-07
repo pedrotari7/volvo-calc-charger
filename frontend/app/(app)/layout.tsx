@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import { AuthProvider, useAuth } from '../../lib/auth';
+import { AuthProvider, devSignInEnabled, useAuth } from '../../lib/auth';
 import Tabs from '../../components/Tabs';
 import { colors } from '../tokens.stylex';
 
@@ -30,7 +30,7 @@ const styles = stylex.create({
 });
 
 const Gate = ({ children }: { children: ReactNode }) => {
-	const { user, ready, allowed, signIn, signOut } = useAuth();
+	const { user, ready, allowed, signIn, signInDev, signOut } = useAuth();
 
 	if (!ready) return <div {...stylex.props(styles.center)} role='status' aria-label='Loading' />;
 
@@ -41,6 +41,11 @@ const Gate = ({ children }: { children: ReactNode }) => {
 				<button type='button' onClick={() => void signIn()} {...stylex.props(styles.button)}>
 					Sign in with Google
 				</button>
+				{devSignInEnabled() ? (
+					<button type='button' onClick={() => void signInDev()} {...stylex.props(styles.button)}>
+						Sign in as dev user
+					</button>
+				) : null}
 			</div>
 		);
 	}

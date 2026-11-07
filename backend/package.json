@@ -12,6 +12,7 @@
 		"typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.scripts.json",
 		"test": "vitest run --config vitest.config.ts",
 		"allow": "ts-node --transpile-only --compiler-options '{\"module\":\"commonjs\"}' scripts/allow.ts",
+		"seed": "ts-node --transpile-only --compiler-options '{\"module\":\"commonjs\"}' scripts/seed.ts",
 		"capture-volvo": "ts-node --transpile-only --compiler-options '{\"module\":\"commonjs\"}' scripts/captureVolvo.ts"
 	},
 	"dependencies": {
