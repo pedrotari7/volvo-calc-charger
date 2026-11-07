@@ -45,7 +45,7 @@ describe('CarPage', () => {
 	it('links to Apple Maps and shows the OSM tile with attribution', () => {
 		render(<CarPage />);
 		expect(screen.getByRole('link', { name: 'Open in Maps' })).toHaveAttribute('href', expect.stringContaining('ll=59.31,18.16'));
-		expect(screen.getByRole('img')).toHaveAttribute('src', expect.stringMatching(/^https:\/\/tile\.openstreetmap\.org\/16\/\d+\/\d+\.png$/));
+		expect(screen.getByRole('img')).toHaveAttribute('src', 'https://tile.openstreetmap.org/16/36073/19280.png');
 		expect(screen.getByRole('link', { name: '© OpenStreetMap contributors' })).toBeInTheDocument();
 	});
 
@@ -59,6 +59,17 @@ describe('CarPage', () => {
 
 	it('computes slippy tile coordinates', () => {
 		expect(tileXY(0, 0, 1)).toEqual({ x: 1, y: 1 });
+		expect(tileXY(59.31, 18.16, 16)).toEqual({ x: 36073, y: 19280 });
+	});
+
+	it('shows Not available for empty openings and tyres', () => {
+		useDoc.mockReturnValue({
+			data: { ...car, openings: { at, value: {} }, tyres: { at, value: {} } },
+			loading: false,
+			error: null,
+		});
+		render(<CarPage />);
+		expect(screen.getAllByText('Not available')).toHaveLength(2);
 	});
 
 	it('shows a loading note and an error note', () => {
