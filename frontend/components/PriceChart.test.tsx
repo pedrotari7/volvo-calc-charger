@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { PriceDay, Tariff } from '@shared/types';
 import { PriceChart } from './PriceChart';
@@ -42,6 +42,26 @@ describe('PriceChart', () => {
 		expect(container.querySelectorAll('rect[data-plan]')).toHaveLength(3);
 		expect(container.querySelectorAll('rect[data-now]')).toHaveLength(1);
 		expect(container.querySelectorAll('rect')).toHaveLength(48);
+	});
+
+	it('shows the current hour, the low and the high as text', () => {
+		render(<PriceChart days={days} tariffs={[tariff]} now={NOW} window={null} />);
+		// 10:30Z is 11:00 local; spot 0.5 + 0.11 ex VAT, + tax 0.4 + markup 0.1 + transfer 0.2 → 1.31 × 1.25.
+		expect(screen.getByTestId('price-readout')).toHaveTextContent('Now 11:00 1,64 kr/kWh');
+		expect(screen.getByTestId('price-range')).toHaveTextContent('Today 1,50–1,79 kr · cheapest 00:00');
+	});
+
+	it('shows the price of a tapped hour and labels hours under the bars', () => {
+		const { container } = render(<PriceChart days={days} tariffs={[tariff]} now={NOW} window={null} />);
+		fireEvent.click(container.querySelectorAll('rect')[30]!);
+		expect(screen.getByTestId('price-readout')).toHaveTextContent('Tomorrow 06:00 2,20 kr/kWh');
+		const ticks = [...container.querySelectorAll('text')].map(t => t.textContent);
+		expect(ticks).toEqual(expect.arrayContaining(['00', '06', '12', '18']));
+	});
+
+	it('says when tomorrow is not published yet', () => {
+		render(<PriceChart days={{ '2026-11-07': days['2026-11-07']! }} tariffs={[tariff]} now={NOW} window={null} />);
+		expect(screen.getByText(/tomorrow.*13:00/i)).toBeInTheDocument();
 	});
 
 	it('says so when there are no prices', () => {
