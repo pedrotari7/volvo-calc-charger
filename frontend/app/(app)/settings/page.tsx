@@ -118,7 +118,10 @@ const SettingsForm = ({ settings }: { settings: Settings }) => {
 						<input
 							inputMode='decimal'
 							value={values[key]}
-							onChange={e => setValues(v => ({ ...v, [key]: e.target.value }))}
+							onChange={e => {
+								setSaved(false);
+								setValues(v => ({ ...v, [key]: e.target.value }));
+							}}
 							{...stylex.props(form.input)}
 						/>
 					</label>
@@ -128,7 +131,10 @@ const SettingsForm = ({ settings }: { settings: Settings }) => {
 					<input
 						value={readyBy}
 						placeholder='07:00'
-						onChange={e => setReadyBy(e.target.value)}
+						onChange={e => {
+							setSaved(false);
+							setReadyBy(e.target.value);
+						}}
 						{...stylex.props(form.input)}
 					/>
 				</label>
@@ -152,7 +158,7 @@ const SettingsForm = ({ settings }: { settings: Settings }) => {
 					<label key={key} {...stylex.props(form.check)}>
 						<input
 							type='checkbox'
-							defaultChecked={settings.notifications[key]}
+							checked={settings.notifications[key]}
 							onChange={e => void toggle(key, e.target.checked)}
 						/>
 						{label}

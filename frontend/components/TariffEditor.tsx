@@ -53,6 +53,9 @@ interface Draft {
 	vatRate: number;
 	money: Record<MoneyKey, string>;
 	incl: Record<MoneyKey, boolean>;
+	// Stored ex-VAT values and which fields were edited; untouched ones are written back as stored.
+	orig: Partial<Record<MoneyKey, number>>;
+	touched: Partial<Record<MoneyKey, boolean>>;
 	months: number[];
 	weekdaysOnly: boolean;
 	fromHour: string;
@@ -75,6 +78,8 @@ const toDraft = (t: Tariff, effectiveFrom: string, isNew: boolean): Draft => {
 		vatRate: t.vatRate,
 		money: shown,
 		incl,
+		orig: money,
+		touched: {},
 		months: t.nacka.highLoad.months,
 		weekdaysOnly: t.nacka.highLoad.weekdaysOnly,
 		fromHour: String(t.nacka.highLoad.fromHour),
@@ -82,13 +87,59 @@ const toDraft = (t: Tariff, effectiveFrom: string, isNew: boolean): Draft => {
 	};
 };
 
+// Nacka Energi's published 2026 prices for a house with a 16 A fuse, incl. VAT.
+const NACKA_2026_INCL: Partial<Record<MoneyKey, string>> = {
+	fixedPerYear: '3306',
+	transferLow: '0.092',
+	transferHigh: '0.368',
+	peak: '56.52',
+};
+
+const emptyDraft = (effectiveFrom: string): Draft => {
+	const money = {} as Record<MoneyKey, string>;
+	const incl = {} as Record<MoneyKey, boolean>;
+	const touched: Partial<Record<MoneyKey, boolean>> = {};
+	for (const { key } of MONEY) {
+		money[key] = NACKA_2026_INCL[key] ?? '';
+		incl[key] = true;
+		touched[key] = true;
+	}
+
+	return {
+		effectiveFrom,
+		isNew: true,
+		vatRate: 0.25,
+		money,
+		incl,
+		orig: {},
+		touched,
+		months: [11, 12, 1, 2, 3],
+		weekdaysOnly: true,
+		fromHour: '6',
+		toHour: '22',
+	};
+};
+
+const validDate = (s: string) => {
+	if (!DATE.test(s)) return false;
+	const [y, m, d] = s.split('-').map(Number) as [number, number, number];
+	const t = new Date(Date.UTC(y, m - 1, d));
+
+	return t.getUTCFullYear() === y && t.getUTCMonth() === m - 1 && t.getUTCDate() === d;
+};
+
 const parseNum = (s: string) => (s.trim() === '' ? NaN : Number(s.replace(',', '.')));
 
 const build = (d: Draft): { tariff: Omit<Tariff, 'id'> } | { errors: string[] } => {
 	const errors: string[] = [];
-	if (!DATE.test(d.effectiveFrom)) errors.push('Start date must look like 2026-01-31.');
+	if (!validDate(d.effectiveFrom)) errors.push('Start date must be a real date like 2026-01-31.');
 	const ex = {} as Record<MoneyKey, number>;
 	for (const { key, label } of MONEY) {
+		const stored = d.orig[key];
+		if (!d.touched[key] && stored !== undefined) {
+			ex[key] = stored;
+			continue;
+		}
 		const n = parseNum(d.money[key]);
 		if (!Number.isFinite(n) || n < 0) errors.push(`${label} must be a number, 0 or more.`);
 		else ex[key] = round(d.incl[key] ? exVat(n, d.vatRate) : n, 6);
@@ -160,6 +211,12 @@ export const TariffEditor = () => {
 			setErrors(built.errors);
 			return;
 		}
+		if (draft.isNew && tariffs.data.some(t => t.id === built.tariff.effectiveFrom)) {
+			setErrors([
+				`A tariff starting ${built.tariff.effectiveFrom} already exists. Edit it or pick another date.`,
+			]);
+			return;
+		}
 		setErrors([]);
 		try {
 			await setDoc(doc(getDb(), 'tariffs', built.tariff.effectiveFrom), built.tariff);
@@ -171,9 +228,8 @@ export const TariffEditor = () => {
 
 	const open = (t: Tariff | undefined, isNew: boolean) => {
 		const base = t ?? sorted[0];
-		if (!base) return;
 		setErrors([]);
-		setDraft(toDraft(base, isNew ? todayLocal() : base.effectiveFrom, isNew));
+		setDraft(base ? toDraft(base, isNew ? todayLocal() : base.effectiveFrom, isNew) : emptyDraft(todayLocal()));
 	};
 
 	return (
@@ -206,12 +262,7 @@ export const TariffEditor = () => {
 				))}
 			</ul>
 			{!draft ? (
-				<button
-					type='button'
-					disabled={sorted.length === 0}
-					onClick={() => open(undefined, true)}
-					{...stylex.props(form.button)}
-				>
+				<button type='button' onClick={() => open(undefined, true)} {...stylex.props(form.button)}>
 					Add tariff
 				</button>
 			) : (
@@ -227,6 +278,12 @@ export const TariffEditor = () => {
 							{...stylex.props(form.input)}
 						/>
 					</label>
+					{sorted.length === 0 ? (
+						<p {...stylex.props(form.note)}>
+							Pre-filled with Nacka Energi&rsquo;s 2026 prices (house, 16 A). Energy tax, Fortum markup
+							and the monthly fee are empty: copy from your invoice.
+						</p>
+					) : null}
 					{MONEY.map(({ key, label }) => (
 						<div key={key} {...stylex.props(form.field)}>
 							<label htmlFor={`tariff-${key}`}>{label}</label>
@@ -235,7 +292,12 @@ export const TariffEditor = () => {
 									id={`tariff-${key}`}
 									inputMode='decimal'
 									value={draft.money[key]}
-									onChange={e => patch({ money: { ...draft.money, [key]: e.target.value } })}
+									onChange={e =>
+										patch({
+											money: { ...draft.money, [key]: e.target.value },
+											touched: { ...draft.touched, [key]: true },
+										})
+									}
 									{...stylex.props(form.input)}
 								/>
 								<select

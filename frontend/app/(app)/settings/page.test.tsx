@@ -84,4 +84,15 @@ describe('SettingsPage', () => {
 		expect(screen.getByText('allowlist-editor')).toBeInTheDocument();
 		expect(screen.getByText('volvo-connection')).toBeInTheDocument();
 	});
+
+	it('clears Saved on further edits and shows stored notification values', async () => {
+		useDoc.mockReturnValue({ data: { notifications: { leftOpen: false } }, loading: false, error: null });
+		render(<SettingsPage />);
+		expect(screen.getByLabelText('Left open')).not.toBeChecked();
+		expect(screen.getByLabelText('Plugged in')).toBeChecked();
+		fireEvent.click(screen.getByRole('button', { name: 'Save settings' }));
+		expect(await screen.findByText('Saved')).toBeInTheDocument();
+		type('Target charge (%)', '85');
+		expect(screen.queryByText('Saved')).toBeNull();
+	});
 });

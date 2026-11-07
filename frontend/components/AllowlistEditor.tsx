@@ -64,7 +64,7 @@ export const AllowlistEditor = () => {
 						<button
 							type='button'
 							aria-label={`Remove ${value}`}
-							disabled={value === me}
+							disabled={me === null || value.toLowerCase() === me}
 							onClick={() => void remove(value)}
 							{...stylex.props(form.secondary)}
 						>

@@ -11,7 +11,8 @@ vi.mock('firebase/firestore', () => ({
 	arrayRemove: (v: string) => ({ remove: v }),
 }));
 vi.mock('../lib/firebaseClient', () => ({ getDb: () => ({}) }));
-vi.mock('../lib/auth', () => ({ useAuth: () => ({ user: { email: 'Me@Example.com' } }) }));
+let authUser: { email: string } | null = { email: 'Me@Example.com' };
+vi.mock('../lib/auth', () => ({ useAuth: () => ({ user: authUser }) }));
 vi.mock('../lib/useDoc', () => ({
 	useDoc: () => ({ data: { emails: ['me@example.com', 'other@example.com'] }, loading: false, error: null }),
 }));
@@ -19,6 +20,7 @@ vi.mock('../lib/useDoc', () => ({
 import { AllowlistEditor } from './AllowlistEditor';
 
 beforeEach(() => {
+	authUser = { email: 'Me@Example.com' };
 	setDoc.mockReset().mockResolvedValue(undefined);
 	updateDoc.mockReset().mockResolvedValue(undefined);
 });
@@ -60,5 +62,18 @@ describe('AllowlistEditor', () => {
 		fireEvent.click(screen.getByRole('button', { name: 'Add email' }));
 		expect(screen.getByRole('alert')).toHaveTextContent('valid email');
 		expect(setDoc).not.toHaveBeenCalled();
+	});
+
+	it('guards case-insensitively, including mixed-case stored entries', () => {
+		authUser = { email: 'other@example.com' };
+		render(<AllowlistEditor />);
+		expect(screen.getByRole('button', { name: 'Remove other@example.com' })).toBeDisabled();
+		expect(screen.getByRole('button', { name: 'Remove me@example.com' })).toBeEnabled();
+	});
+
+	it('disables every Remove button until the user email is known', () => {
+		authUser = null;
+		render(<AllowlistEditor />);
+		for (const b of screen.getAllByRole('button', { name: /^Remove / })) expect(b).toBeDisabled();
 	});
 });

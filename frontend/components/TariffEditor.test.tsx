@@ -125,4 +125,63 @@ describe('TariffEditor', () => {
 		const calls = useCollection.mock.calls.filter(([p]) => p === 'sessions');
 		expect(calls.at(-1)![1]).toBe(calls[0]![1]);
 	});
+
+	it('rejects an add whose start date already has a tariff', () => {
+		render(<TariffEditor />);
+		fireEvent.click(screen.getByRole('button', { name: 'Add tariff' }));
+		fireEvent.change(screen.getByLabelText('Start date'), { target: { value: '2026-01-01' } });
+		fireEvent.click(screen.getByRole('button', { name: 'Save tariff' }));
+		expect(screen.getByRole('alert')).toHaveTextContent('already exists');
+		expect(setDoc).not.toHaveBeenCalled();
+	});
+
+	it('writes untouched money fields exactly as stored, also after toggling VAT mode twice', async () => {
+		tariffs = [{ ...mk('2026-01-01', '2026-01-01'), energyTaxPerKwh: 0.1234 }];
+		render(<TariffEditor />);
+		fireEvent.click(screen.getByRole('button', { name: 'Edit tariff from 2026-01-01' }));
+		fireEvent.change(screen.getByLabelText('Fortum markup (kr/kWh)'), { target: { value: '0.0625' } });
+		const vat = screen.getByLabelText('Energy tax (kr/kWh) VAT');
+		fireEvent.change(vat, { target: { value: 'excl' } });
+		fireEvent.change(vat, { target: { value: 'incl' } });
+		fireEvent.click(screen.getByRole('button', { name: 'Save tariff' }));
+		await waitFor(() => expect(setDoc).toHaveBeenCalled());
+		const [ref, data] = setDoc.mock.calls[0]!;
+		expect(ref).toEqual({ path: 'tariffs/2026-01-01' });
+		expect(data.energyTaxPerKwh).toBe(0.1234);
+		expect(data.fortum.markupPerKwh).toBe(0.05);
+		expect(data.nacka.peakPerKwMonth).toBe(45);
+	});
+
+	it.each(['2026-13-45', '2026-02-30', '2026-1-1'])('rejects the impossible start date %s', date => {
+		render(<TariffEditor />);
+		fireEvent.click(screen.getByRole('button', { name: 'Add tariff' }));
+		fireEvent.change(screen.getByLabelText('Start date'), { target: { value: date } });
+		fireEvent.click(screen.getByRole('button', { name: 'Save tariff' }));
+		expect(screen.getAllByRole('alert')[0]).toHaveTextContent('Start date');
+		expect(setDoc).not.toHaveBeenCalled();
+	});
+
+	it('creates the first tariff from Nacka 2026 defaults, requiring the invoice fields', async () => {
+		tariffs = [];
+		render(<TariffEditor />);
+		fireEvent.click(screen.getByRole('button', { name: 'Add tariff' }));
+		expect(screen.getByText(/copy from your invoice/)).toBeInTheDocument();
+		expect(screen.getByLabelText('Nacka fixed fee (kr/year)')).toHaveValue('3306');
+		fireEvent.click(screen.getByRole('button', { name: 'Save tariff' }));
+		expect(screen.getAllByRole('alert').length).toBe(3);
+		expect(setDoc).not.toHaveBeenCalled();
+		fireEvent.change(screen.getByLabelText('Energy tax (kr/kWh)'), { target: { value: '0.5' } });
+		fireEvent.change(screen.getByLabelText('Fortum markup (kr/kWh)'), { target: { value: '0.0625' } });
+		fireEvent.change(screen.getByLabelText('Fortum monthly fee (kr/month)'), { target: { value: '49' } });
+		fireEvent.click(screen.getByRole('button', { name: 'Save tariff' }));
+		await waitFor(() => expect(setDoc).toHaveBeenCalledTimes(1));
+		const data = setDoc.mock.calls[0]![1];
+		expect(data.vatRate).toBe(0.25);
+		expect(data.nacka.fixedPerYear).toBe(2644.8);
+		expect(data.nacka.transferLowPerKwh).toBe(0.0736);
+		expect(data.nacka.transferHighPerKwh).toBe(0.2944);
+		expect(data.nacka.peakPerKwMonth).toBe(45.216);
+		expect(data.energyTaxPerKwh).toBe(0.4);
+		expect(data.nacka.highLoad).toEqual({ months: [1, 2, 3, 11, 12], weekdaysOnly: true, fromHour: 6, toHour: 22 });
+	});
 });
