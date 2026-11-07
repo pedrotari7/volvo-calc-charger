@@ -3,6 +3,9 @@ import { DEFAULT_SETTINGS } from '../../../shared/types';
 import type { Settings } from '../../../shared/types';
 import { db } from './firebase';
 
+/** FCM requires an absolute HTTPS link for web push. */
+export const APP_ORIGIN = 'https://volvo-calc-charger.vercel.app';
+
 export type PushKind = 'plugIn' | 'sessionDone' | 'leftOpen' | 'reconnect';
 export interface PushInput {
 	kind: PushKind;
@@ -50,7 +53,7 @@ export async function sendPush(
 			tokens,
 			notification: { title: input.title, body: input.body },
 			data: { url: input.url, kind: input.kind },
-			webpush: { fcmOptions: { link: input.url } },
+			webpush: { fcmOptions: { link: new URL(input.url, APP_ORIGIN).href } },
 		});
 		const dead = res.responses
 			.map((r, i) => (r.error && DEAD_TOKEN_CODES.has(r.error.code) ? tokens[i] : null))

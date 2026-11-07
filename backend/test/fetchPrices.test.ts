@@ -157,7 +157,7 @@ describe('sendPush', () => {
 			tokens: ['tok1'],
 			notification: { title: 't', body: 'b' },
 			data: { url: '/x', kind: 'sessionDone' },
-			webpush: { fcmOptions: { link: '/x' } },
+			webpush: { fcmOptions: { link: 'https://volvo-calc-charger.vercel.app/x' } },
 		});
 	});
 

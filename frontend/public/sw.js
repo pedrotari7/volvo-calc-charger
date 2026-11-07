@@ -89,32 +89,19 @@ self.addEventListener('fetch', event => {
 	);
 });
 
+importScripts('/sw-lib.js');
+
 // The backend sends FCM messages with `notification` and `data`; this worker renders them.
 self.addEventListener('push', event => {
-	if (!event.data) return;
-
-	let payload = {};
-	try {
-		const raw = event.data.json() || {};
-		const notification = raw.notification || {};
-		const data = raw.data || {};
-		payload = {
-			title: notification.title || data.title,
-			body: notification.body || data.body,
-			tag: data.tag,
-			url: data.url || raw.fcmOptions?.link || notification.click_action,
-		};
-	} catch {
-		payload = { body: event.data.text() };
-	}
+	const { title, body, tag, url } = self.__swLib.parsePush(event.data, self.location.origin, `push-${Date.now()}`);
 
 	event.waitUntil(
-		self.registration.showNotification(payload.title || 'Volvo Charge', {
-			body: payload.body || '',
+		self.registration.showNotification(title, {
+			body,
 			icon: '/icon-192.png',
 			badge: '/icon-192.png',
-			tag: payload.tag || 'volvo-charge',
-			data: { url: payload.url || '/' },
+			tag,
+			data: { url },
 		})
 	);
 });
@@ -122,7 +109,10 @@ self.addEventListener('push', event => {
 self.addEventListener('notificationclick', event => {
 	event.notification.close();
 
-	const target = new URL(event.notification.data?.url || '/', self.location.origin).href;
+	const target = new URL(
+		self.__swLib.safeUrl(event.notification.data?.url, self.location.origin),
+		self.location.origin
+	).href;
 
 	event.waitUntil(
 		(async () => {
