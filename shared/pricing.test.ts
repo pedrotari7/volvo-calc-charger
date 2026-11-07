@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { allInRateInclVat, hourRateExVat, priceSession } from './pricing';
+import { allInRateInclVat, hourRateExVat, priceSession, quarterRatesInclVat } from './pricing';
 import { TEST_TARIFF } from './testdata';
 import type { PriceDay, Session, Tariff } from './types';
 import { parseZaptecSessions } from './zaptec';
@@ -97,5 +97,24 @@ describe('allInRateInclVat', () => {
 		const h = '2026-11-03T00:00:00.000Z';
 		expect(allInRateInclVat(h, days, tariffs)).toBeCloseTo((0.6 + 0.05 + 0.0736 + 0.36) * 1.25, 6);
 		expect(allInRateInclVat(h, {}, tariffs)).toBeNull();
+	});
+});
+
+describe('quarterRatesInclVat', () => {
+	it('returns each quarter of the hour with its own spot price and the hour tariff', () => {
+		const q = quarterRatesInclVat('2026-11-03T00:00:00.000Z', days, tariffs);
+		expect(q.map(x => x.start)).toEqual([
+			'2026-11-03T00:00:00.000Z',
+			'2026-11-03T00:15:00.000Z',
+			'2026-11-03T00:30:00.000Z',
+			'2026-11-03T00:45:00.000Z',
+		]);
+		expect(q[1]!.rate).toBeCloseTo((0.62 + 0.05 + 0.0736 + 0.36) * 1.25, 6);
+		expect(q[2]!.rate).toBeCloseTo((0.58 + 0.05 + 0.0736 + 0.36) * 1.25, 6);
+	});
+
+	it('is empty without prices or a tariff', () => {
+		expect(quarterRatesInclVat('2026-11-03T00:00:00.000Z', {}, tariffs)).toEqual([]);
+		expect(quarterRatesInclVat('2026-11-03T00:00:00.000Z', days, [])).toEqual([]);
 	});
 });
