@@ -3,9 +3,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Tariff } from '@shared/types';
 
 const setDoc = vi.fn();
+const batchOps: [string, unknown, unknown?][] = [];
+const commit = vi.fn();
 vi.mock('firebase/firestore', () => ({
 	doc: (_db: unknown, ...path: string[]) => ({ path: path.join('/') }),
 	setDoc: (...a: unknown[]) => setDoc(...a),
+	writeBatch: () => ({
+		set: (ref: unknown, data: unknown) => batchOps.push(['set', ref, data]),
+		delete: (ref: unknown) => batchOps.push(['delete', ref]),
+		commit: () => commit(),
+	}),
 	where: (...a: unknown[]) => ({ where: a }),
 }));
 vi.mock('../lib/firebaseClient', () => ({ getDb: () => ({}) }));
@@ -37,6 +44,8 @@ import { TariffEditor } from './TariffEditor';
 
 beforeEach(() => {
 	setDoc.mockReset().mockResolvedValue(undefined);
+	commit.mockReset().mockResolvedValue(undefined);
+	batchOps.length = 0;
 	tariffs = [mk('2025-01-01', '2025-01-01'), mk('2026-01-01', '2026-01-01')];
 	pending = [];
 });
@@ -133,6 +142,30 @@ describe('TariffEditor', () => {
 		fireEvent.click(screen.getByRole('button', { name: 'Save tariff' }));
 		expect(screen.getByRole('alert')).toHaveTextContent('already exists');
 		expect(setDoc).not.toHaveBeenCalled();
+	});
+
+	it('moves a tariff whose start date is edited instead of copying it', async () => {
+		render(<TariffEditor />);
+		fireEvent.click(screen.getByRole('button', { name: 'Edit tariff from 2026-01-01' }));
+		fireEvent.change(screen.getByLabelText('Start date'), { target: { value: '2025-07-01' } });
+		fireEvent.click(screen.getByRole('button', { name: 'Save tariff' }));
+		await waitFor(() => expect(commit).toHaveBeenCalledTimes(1));
+		expect(setDoc).not.toHaveBeenCalled();
+		expect(batchOps.map(([op, ref]) => [op, ref])).toEqual([
+			['set', { path: 'tariffs/2025-07-01' }],
+			['delete', { path: 'tariffs/2026-01-01' }],
+		]);
+		expect((batchOps[0]![2] as Tariff).effectiveFrom).toBe('2025-07-01');
+	});
+
+	it('rejects moving a tariff onto a start date that already has one', () => {
+		render(<TariffEditor />);
+		fireEvent.click(screen.getByRole('button', { name: 'Edit tariff from 2026-01-01' }));
+		fireEvent.change(screen.getByLabelText('Start date'), { target: { value: '2025-01-01' } });
+		fireEvent.click(screen.getByRole('button', { name: 'Save tariff' }));
+		expect(screen.getByRole('alert')).toHaveTextContent('already exists');
+		expect(setDoc).not.toHaveBeenCalled();
+		expect(commit).not.toHaveBeenCalled();
 	});
 
 	it('writes untouched money fields exactly as stored, also after toggling VAT mode twice', async () => {

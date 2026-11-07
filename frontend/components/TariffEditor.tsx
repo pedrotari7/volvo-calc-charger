@@ -4,7 +4,7 @@ import * as stylex from '@stylexjs/stylex';
 import { exVat, inclVat, selectTariff } from '@shared/tariff';
 import { floorHourUtc } from '@shared/time';
 import type { PricedSession, Tariff } from '@shared/types';
-import { doc, setDoc, where } from 'firebase/firestore';
+import { doc, setDoc, where, writeBatch } from 'firebase/firestore';
 import { useMemo, useState } from 'react';
 import { getDb } from '../lib/firebaseClient';
 import { useCollection } from '../lib/useCollection';
@@ -50,6 +50,8 @@ const todayLocal = () => {
 interface Draft {
 	effectiveFrom: string;
 	isNew: boolean;
+	// Doc id of the tariff being edited; null when adding.
+	originalId: string | null;
 	vatRate: number;
 	money: Record<MoneyKey, string>;
 	incl: Record<MoneyKey, boolean>;
@@ -75,6 +77,7 @@ const toDraft = (t: Tariff, effectiveFrom: string, isNew: boolean): Draft => {
 	return {
 		effectiveFrom,
 		isNew,
+		originalId: isNew ? null : t.id,
 		vatRate: t.vatRate,
 		money: shown,
 		incl,
@@ -108,6 +111,7 @@ const emptyDraft = (effectiveFrom: string): Draft => {
 	return {
 		effectiveFrom,
 		isNew: true,
+		originalId: null,
 		vatRate: 0.25,
 		money,
 		incl,
@@ -211,7 +215,8 @@ export const TariffEditor = () => {
 			setErrors(built.errors);
 			return;
 		}
-		if (draft.isNew && tariffs.data.some(t => t.id === built.tariff.effectiveFrom)) {
+		const target = built.tariff.effectiveFrom;
+		if (tariffs.data.some(t => t.id === target && t.id !== draft.originalId)) {
 			setErrors([
 				`A tariff starting ${built.tariff.effectiveFrom} already exists. Edit it or pick another date.`,
 			]);
@@ -219,7 +224,15 @@ export const TariffEditor = () => {
 		}
 		setErrors([]);
 		try {
-			await setDoc(doc(getDb(), 'tariffs', built.tariff.effectiveFrom), built.tariff);
+			if (draft.originalId && draft.originalId !== target) {
+				// Start date changed: tariffs are keyed by start date, so move the doc atomically.
+				const batch = writeBatch(getDb());
+				batch.set(doc(getDb(), 'tariffs', target), built.tariff);
+				batch.delete(doc(getDb(), 'tariffs', draft.originalId));
+				await batch.commit();
+			} else {
+				await setDoc(doc(getDb(), 'tariffs', target), built.tariff);
+			}
 			setDraft(null);
 		} catch {
 			setErrors(['Could not save the tariff.']);
