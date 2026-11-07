@@ -43,7 +43,7 @@ const HomePage = () => {
 	const prices = useCollection<PriceDay>('prices', priceConstraints);
 	const tariffs = useCollection<Tariff>('tariffs');
 
-	const days = useMemo(() => Object.fromEntries(prices.data.map((d) => [d.id, d])), [prices.data]);
+	const days = useMemo(() => Object.fromEntries(prices.data.map(d => [d.id, d])), [prices.data]);
 	const rateNow = allInRateInclVat(floorHourUtc(now), days, tariffs.data);
 	const rec = plan.data?.recommendation ?? null;
 
@@ -61,7 +61,11 @@ const HomePage = () => {
 			) : (
 				<CarSummary car={car.data} charger={charger.data} now={now} rateNow={rateNow} />
 			)}
-			{plan.error ? <Note error>Couldn&apos;t load the plan</Note> : plan.loading ? null : <TonightCard plan={plan.data} />}
+			{plan.error ? (
+				<Note error>Couldn&apos;t load the plan</Note>
+			) : plan.loading ? null : (
+				<TonightCard plan={plan.data} />
+			)}
 			{prices.error || tariffs.error ? (
 				<Note error>Couldn&apos;t load prices</Note>
 			) : prices.loading || tariffs.loading ? (

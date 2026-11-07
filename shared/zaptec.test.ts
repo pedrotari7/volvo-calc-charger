@@ -40,7 +40,7 @@ describe('parseZaptecSessions', () => {
 			],
 		};
 		const out = parseZaptecSessions(page);
-		expect(out.map((s) => s.hours)).toEqual([[], [{ hourStartUtc: '2026-11-04T20:00:00.000Z', kWh: 1 }]]);
+		expect(out.map(s => s.hours)).toEqual([[], [{ hourStartUtc: '2026-11-04T20:00:00.000Z', kWh: 1 }]]);
 	});
 	it('drops the 0 kWh session and parses the first one', () => {
 		const sessions = parseZaptecSessions(fixture());
@@ -99,15 +99,21 @@ describe('parseZaptecSessions', () => {
 		}
 	});
 	it('keeps hours distinct and summing to the total across the DST night', () => {
-		const s = parseZaptecSessions(fixture()).find((x) => x.kWh === 42.104)!;
+		const s = parseZaptecSessions(fixture()).find(x => x.kWh === 42.104)!;
 		const sum = s.hours.reduce((a, h) => a + h.kWh, 0);
 		expect(Math.abs(sum - 42.104)).toBeLessThan(0.003);
-		expect(new Set(s.hours.map((h) => h.hourStartUtc)).size).toBe(s.hours.length);
+		expect(new Set(s.hours.map(h => h.hourStartUtc)).size).toBe(s.hours.length);
 	});
 });
 
 describe('parseZaptecSessionsSafe', () => {
-	const good = { Id: 'g', StartDateTime: '2026-11-02T23:02:05', EndDateTime: '2026-11-03T01:00:00', Energy: 2, EnergyDetails: [] };
+	const good = {
+		Id: 'g',
+		StartDateTime: '2026-11-02T23:02:05',
+		EndDateTime: '2026-11-03T01:00:00',
+		Energy: 2,
+		EnergyDetails: [],
+	};
 	it('skips a malformed row and keeps the rest', () => {
 		const bad = { ...good, Id: 'b', StartDateTime: 'not a date' };
 		const r = parseZaptecSessionsSafe({ Data: [bad, good, 'junk'] });

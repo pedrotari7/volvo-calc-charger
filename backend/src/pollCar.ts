@@ -73,7 +73,9 @@ export async function runPollCar(nowUtc: IsoUtc, deps: PollCarDeps): Promise<voi
 	const car = parseCarState(raw, nowUtc);
 	await db.doc('car/state').set(car);
 	if (car.odometerKm) {
-		await db.doc(`odometer/${localDateOf(car.odometerKm.at)}`).set({ km: car.odometerKm.value, at: car.odometerKm.at });
+		await db
+			.doc(`odometer/${localDateOf(car.odometerKm.at)}`)
+			.set({ km: car.odometerKm.value, at: car.odometerKm.at });
 	}
 
 	// Without door/window data we know nothing; leave the remembered key alone.

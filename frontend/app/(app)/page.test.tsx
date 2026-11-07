@@ -22,8 +22,10 @@ beforeEach(() => {
 
 describe('HomePage', () => {
 	it('shows an error line when prices fail to load', () => {
-		useCollection.mockImplementation((p) =>
-			p === 'prices' ? { data: [], loading: false, error: new Error('denied') } : { data: [], loading: false, error: null },
+		useCollection.mockImplementation(p =>
+			p === 'prices'
+				? { data: [], loading: false, error: new Error('denied') }
+				: { data: [], loading: false, error: null }
 		);
 		render(<HomePage />);
 		expect(screen.getByRole('alert')).toHaveTextContent("Couldn't load prices");

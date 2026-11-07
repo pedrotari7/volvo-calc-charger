@@ -6,7 +6,9 @@ import { db } from '../src/lib/firebase';
 import { runPlanTonight } from '../src/planTonight';
 
 // Real sendPush (dedupe transaction included); only the FCM client is faked.
-const send = vi.hoisted(() => vi.fn(async (m: { tokens: string[] }) => ({ responses: m.tokens.map(() => ({ success: true })) })));
+const send = vi.hoisted(() =>
+	vi.fn(async (m: { tokens: string[] }) => ({ responses: m.tokens.map(() => ({ success: true })) }))
+);
 vi.mock('firebase-admin/messaging', () => ({ getMessaging: () => ({ sendEachForMulticast: send }) }));
 
 const HOUR = 3_600_000;
@@ -54,7 +56,11 @@ describe('runPlanTonight', () => {
 		expect(plan?.basis).toBe('tomorrow');
 		expect((await db.doc('plans/2026-11-03').get()).data()).toEqual(JSON.parse(JSON.stringify(plan)));
 		expect(send).toHaveBeenCalledTimes(1);
-		const arg = (send.mock.calls[0] as unknown as [{ notification: { title: string; body: string }; data: Record<string, string> }])[0];
+		const arg = (
+			send.mock.calls[0] as unknown as [
+				{ notification: { title: string; body: string }; data: Record<string, string> },
+			]
+		)[0];
 		expect(arg.notification.title).toBe('Charge tonight');
 		expect(arg.data).toEqual({ url: '/', kind: 'plugIn' });
 		expect((await db.doc('private/notified/keys/plugIn%3A2026-11-03').get()).exists).toBe(true);
@@ -62,9 +68,7 @@ describe('runPlanTonight', () => {
 		expect(body).toMatch(/^62% → 80%: plug in, cheapest 0\d:00–0\d:00, ≈ \d+ kr$/);
 		const r = plan!.recommendation!;
 		const hhmm = (iso: string) => `${pad(localParts(iso).hour)}:00`;
-		expect(body).toBe(
-			`62% → 80%: plug in, cheapest ${hhmm(r.start)}–${hhmm(r.end)}, ≈ ${Math.round(r.cost)} kr`
-		);
+		expect(body).toBe(`62% → 80%: plug in, cheapest ${hhmm(r.start)}–${hhmm(r.end)}, ≈ ${Math.round(r.cost)} kr`);
 	});
 
 	it('writes the plan but sends no push when already plugged in', async () => {

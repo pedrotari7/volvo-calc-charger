@@ -18,6 +18,8 @@ interface Props {
 export const StatusRow = ({ label, value, tone }: Props) => (
 	<div {...stylex.props(styles.row)}>
 		<span {...stylex.props(styles.label)}>{label}</span>
-		<span {...stylex.props(styles.value, tone === 'bad' && styles.bad, tone === 'good' && styles.good)}>{value}</span>
+		<span {...stylex.props(styles.value, tone === 'bad' && styles.bad, tone === 'good' && styles.good)}>
+			{value}
+		</span>
 	</div>
 );

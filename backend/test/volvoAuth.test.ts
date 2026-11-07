@@ -280,13 +280,27 @@ describe('handleVolvoCallback', () => {
 		try {
 			await pending();
 			const fetchFn = vi.fn(async () => json(400, { error: 'invalid_grant', detail: 'body-secret' }));
-			await handleVolvoCallback({ code: 'secret-code-123', state: 'good' }, creds, fetchFn as unknown as typeof fetch);
-			expect(warn).toHaveBeenCalledWith('volvoCallback: code exchange failed', { status: 400, errorClass: 'VolvoExchangeError' });
+			await handleVolvoCallback(
+				{ code: 'secret-code-123', state: 'good' },
+				creds,
+				fetchFn as unknown as typeof fetch
+			);
+			expect(warn).toHaveBeenCalledWith('volvoCallback: code exchange failed', {
+				status: 400,
+				errorClass: 'VolvoExchangeError',
+			});
 
 			await pending();
 			const down = vi.fn(async () => Promise.reject(new TypeError('fetch failed')));
-			await handleVolvoCallback({ code: 'secret-code-123', state: 'good' }, creds, down as unknown as typeof fetch);
-			expect(warn).toHaveBeenLastCalledWith('volvoCallback: code exchange failed', { status: null, errorClass: 'TypeError' });
+			await handleVolvoCallback(
+				{ code: 'secret-code-123', state: 'good' },
+				creds,
+				down as unknown as typeof fetch
+			);
+			expect(warn).toHaveBeenLastCalledWith('volvoCallback: code exchange failed', {
+				status: null,
+				errorClass: 'TypeError',
+			});
 
 			const logged = JSON.stringify(warn.mock.calls);
 			for (const secret of ['secret-code-123', 'body-secret', 'invalid_grant', 'csecret', 'ver']) {

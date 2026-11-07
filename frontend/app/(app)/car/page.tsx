@@ -98,7 +98,12 @@ const CarPage = () => {
 			<Section title='Openings' at={car?.openings?.at} now={now}>
 				{car?.openings && Object.keys(car.openings.value).length ? (
 					Object.entries(car.openings.value).map(([k, v]) => (
-						<StatusRow key={k} label={openingLabel(k)} value={v === 'open' ? 'Open' : 'Closed'} tone={v === 'open' ? 'bad' : undefined} />
+						<StatusRow
+							key={k}
+							label={openingLabel(k)}
+							value={v === 'open' ? 'Open' : 'Closed'}
+							tone={v === 'open' ? 'bad' : undefined}
+						/>
 					))
 				) : (
 					<NotAvailable />
@@ -114,7 +119,7 @@ const CarPage = () => {
 			<Section title='Warnings' at={car?.warnings?.at} now={now}>
 				{car?.warnings ? (
 					car.warnings.value.length ? (
-						car.warnings.value.map((w) => <StatusRow key={w} label={sentence(w)} value='Active' tone='bad' />)
+						car.warnings.value.map(w => <StatusRow key={w} label={sentence(w)} value='Active' tone='bad' />)
 					) : (
 						<p {...stylex.props(styles.muted)}>No warnings</p>
 					)
@@ -129,18 +134,26 @@ const CarPage = () => {
 						{car.service.value.distanceKm !== null ? (
 							<StatusRow label='Distance to service' value={`${num(car.service.value.distanceKm)} km`} />
 						) : null}
-						{car.service.value.days !== null ? <StatusRow label='Days to service' value={num(car.service.value.days)} /> : null}
+						{car.service.value.days !== null ? (
+							<StatusRow label='Days to service' value={num(car.service.value.days)} />
+						) : null}
 					</>
 				) : (
 					<NotAvailable />
 				)}
 			</Section>
 			<Section title='Odometer' at={car?.odometerKm?.at} now={now}>
-				{car?.odometerKm ? <StatusRow label='Total' value={`${num(car.odometerKm.value)} km`} /> : <NotAvailable />}
+				{car?.odometerKm ? (
+					<StatusRow label='Total' value={`${num(car.odometerKm.value)} km`} />
+				) : (
+					<NotAvailable />
+				)}
 			</Section>
 			<Section title='Trip statistics' at={car?.trips?.at} now={now}>
 				{car?.trips ? (
-					Object.entries(car.trips.value).map(([k, v]) => <StatusRow key={k} label={sentence(k)} value={`${num(v)}${tripUnit(k)}`} />)
+					Object.entries(car.trips.value).map(([k, v]) => (
+						<StatusRow key={k} label={sentence(k)} value={`${num(v)}${tripUnit(k)}`} />
+					))
 				) : (
 					<NotAvailable />
 				)}

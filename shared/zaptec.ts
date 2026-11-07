@@ -71,7 +71,7 @@ function parseSession(raw: unknown): Session | null {
 	const hours: SessionHour[] = [...acc]
 		.sort(([a], [b]) => (a < b ? -1 : 1))
 		.map(([hourStartUtc, kWh]) => ({ hourStartUtc, kWh: Math.round(kWh * 1000) / 1000 }))
-		.filter((h) => h.kWh > 0);
+		.filter(h => h.kWh > 0);
 
 	return { id, startUtc, endUtc, kWh: energy, hours };
 }

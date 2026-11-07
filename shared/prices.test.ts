@@ -28,7 +28,7 @@ describe('spotForHour', () => {
 		const days: Record<string, PriceDay> = {
 			'2026-11-03': {
 				date: '2026-11-03',
-				quarters: ['00:00', '00:15', '00:30', '00:45'].map((t) => q(`2026-11-03T${t}:00+01:00`, 0.8)),
+				quarters: ['00:00', '00:15', '00:30', '00:45'].map(t => q(`2026-11-03T${t}:00+01:00`, 0.8)),
 			},
 		};
 		expect(spotForHour(days, '2026-11-02T23:00:00.000Z')).toBeCloseTo(0.8, 10);
@@ -50,9 +50,8 @@ describe('spotForHour', () => {
 
 describe('priceDocDatesFor', () => {
 	it('returns distinct local dates', () => {
-		expect(priceDocDatesFor(['2026-11-02T22:00:00.000Z', '2026-11-02T23:00:00.000Z', '2026-11-03T00:00:00.000Z'])).toEqual([
-			'2026-11-02',
-			'2026-11-03',
-		]);
+		expect(
+			priceDocDatesFor(['2026-11-02T22:00:00.000Z', '2026-11-02T23:00:00.000Z', '2026-11-03T00:00:00.000Z'])
+		).toEqual(['2026-11-02', '2026-11-03']);
 	});
 });

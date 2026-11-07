@@ -52,7 +52,8 @@ describe('CommandButtons', () => {
 
 	it('maps callable error codes to readable messages', async () => {
 		vi.stubGlobal('confirm', () => true);
-		const err = (code: string) => Object.assign(new Error(code), { name: 'FirebaseError', code: `functions/${code}` });
+		const err = (code: string) =>
+			Object.assign(new Error(code), { name: 'FirebaseError', code: `functions/${code}` });
 		callable.mockRejectedValueOnce(err('failed-precondition'));
 		render(<CommandButtons locked={false} />);
 		fireEvent.click(screen.getByRole('button', { name: 'Lock' }));

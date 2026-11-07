@@ -53,7 +53,8 @@ export const CarSummary = ({ car, charger, now, rateNow }: Props) => {
 			{charger?.charging ? (
 				<p {...stylex.props(styles.live)}>
 					{charger.liveKw.toFixed(1)} kW · {formatKwh(charger.sessionKwh)} ·{' '}
-					{rateNow === null ? '–' : `≈ ${formatKr(rateNow * charger.sessionKwh)}`} so far (at the current hour&apos;s price)
+					{rateNow === null ? '–' : `≈ ${formatKr(rateNow * charger.sessionKwh)}`} so far (at the current
+					hour&apos;s price)
 					{estFullAt ? ` · full ${formatLocalTime(estFullAt)}` : ''}
 				</p>
 			) : null}

@@ -29,7 +29,12 @@ import HistoryPage from './page';
 beforeEach(() => {
 	useDoc.mockReset().mockReturnValue({ data: null, loading: false, error: null });
 	useCollection.mockReset().mockImplementation((p: string) => ({
-		data: p === 'sessions' ? sessions : p === 'peaks' ? [{ id: '2026-11', month: '2026-11', top3: [], estimatedFee: 3, final: false }] : [],
+		data:
+			p === 'sessions'
+				? sessions
+				: p === 'peaks'
+					? [{ id: '2026-11', month: '2026-11', top3: [], estimatedFee: 3, final: false }]
+					: [],
 		loading: false,
 		error: null,
 	}));
@@ -38,9 +43,9 @@ beforeEach(() => {
 describe('HistoryPage', () => {
 	it('groups by month newest first, sessions newest first', () => {
 		render(<HistoryPage />);
-		const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
+		const headings = screen.getAllByRole('heading', { level: 2 }).map(h => h.textContent);
 		expect(headings).toEqual(['2026-11', '2026-10']);
-		const hrefs = screen.getAllByRole('link').map((a) => a.getAttribute('href'));
+		const hrefs = screen.getAllByRole('link').map(a => a.getAttribute('href'));
 		expect(hrefs).toEqual(['/history/new2', '/history/new1', '/history/old']);
 		expect(screen.getAllByText('Peak fee (estimate)')).toHaveLength(2);
 		expect(screen.getByText('3,00 kr')).toBeInTheDocument();

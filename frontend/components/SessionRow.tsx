@@ -39,7 +39,9 @@ export const SessionRow = ({ session: s }: { session: PricedSession }) => {
 			</span>
 			<span {...stylex.props(styles.col, styles.right)}>
 				<span>{total === null ? 'pending' : formatKr(total)}</span>
-				{total !== null && s.kWh > 0 ? <span {...stylex.props(styles.muted)}>{`${formatKr(total / s.kWh)}/kWh`}</span> : null}
+				{total !== null && s.kWh > 0 ? (
+					<span {...stylex.props(styles.muted)}>{`${formatKr(total / s.kWh)}/kWh`}</span>
+				) : null}
 				{delta !== null ? (
 					<span {...stylex.props(delta > 0 ? styles.bad : styles.good)}>
 						{`${delta > 0 ? '+' : ''}${formatKr(delta)} vs plan`}

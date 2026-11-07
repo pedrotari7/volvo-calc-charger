@@ -11,13 +11,15 @@ const PrivacyPage = () => (
 				<li>Lock, doors and windows status</li>
 				<li>Odometer, tyre status, warnings and diagnostics</li>
 				<li>Trip statistics</li>
-				<li>Battery charge level, electric range, charging connection and system status, estimated charging time</li>
+				<li>
+					Battery charge level, electric range, charging connection and system status, estimated charging time
+				</li>
 				<li>Recharge status and charging history</li>
 				<li>Vehicle location</li>
 			</ul>
 			<p>
-				The app can also send two commands, lock and climate start or stop. Only the last four characters of
-				the VIN are shown in the app.
+				The app can also send two commands, lock and climate start or stop. Only the last four characters of the
+				VIN are shown in the app.
 			</p>
 		</Section>
 		<Section title='Other data'>

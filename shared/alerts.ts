@@ -16,7 +16,7 @@ export function leftOpenIssues(car: CarState): string[] {
 export function shouldSendLeftOpen(
 	issues: string[],
 	nowUtc: IsoUtc,
-	lastKey: string | null,
+	lastKey: string | null
 ): { send: boolean; key: string | null } {
 	if (issues.length === 0) return { send: false, key: null };
 	const { hour } = localParts(nowUtc);
@@ -55,7 +55,7 @@ function label(issue: string): string {
 export function leftOpenMessage(issues: string[]): string {
 	if (issues.length === 0) return '';
 	const unlocked = issues.includes('unlocked');
-	const rest = issues.filter((i) => i !== 'unlocked').map(label);
+	const rest = issues.filter(i => i !== 'unlocked').map(label);
 	if (unlocked) return [`${CAR_NAME} is unlocked`, ...rest].join(' · ');
 	return `${CAR_NAME}: ${rest.join(' · ')}`;
 }

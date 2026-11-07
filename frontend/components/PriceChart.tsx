@@ -79,8 +79,8 @@ export const PriceChart = ({ days, tariffs, now, window: planWindow }: Props) =>
 					/>
 				);
 			})}
-			{[today, tomorrow].map((d) => {
-				const i = bars.findIndex((b) => localDateOf(b.hour) === d);
+			{[today, tomorrow].map(d => {
+				const i = bars.findIndex(b => localDateOf(b.hour) === d);
 
 				return i < 0 ? null : (
 					<text key={d} x={i * slot + 1} y={H - 4} {...stylex.props(styles.label)}>

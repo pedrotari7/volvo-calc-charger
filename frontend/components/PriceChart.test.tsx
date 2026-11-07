@@ -35,7 +35,7 @@ describe('PriceChart', () => {
 				tariffs={[tariff]}
 				now={NOW}
 				window={{ start: '2026-11-08T00:00:00.000Z', end: '2026-11-08T03:00:00.000Z' }}
-			/>,
+			/>
 		);
 		const img = screen.getByRole('img');
 		expect(img.getAttribute('aria-label')).toMatch(/lowest 1,50 kr at 00:00.*highest/i);

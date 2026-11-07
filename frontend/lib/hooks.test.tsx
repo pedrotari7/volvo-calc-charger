@@ -32,7 +32,9 @@ describe('useCollection', () => {
 		const { result } = renderHook(() => useCollection<{ a: number }>('tariffs'));
 		const onNext = onSnapshot.mock.calls[0]![1] as (s: unknown) => void;
 		onNext({ docs: [{ id: 'x', data: () => ({ a: 1 }) }] });
-		return vi.waitFor(() => expect(result.current).toEqual({ data: [{ a: 1, id: 'x' }], loading: false, error: null }));
+		return vi.waitFor(() =>
+			expect(result.current).toEqual({ data: [{ a: 1, id: 'x' }], loading: false, error: null })
+		);
 	});
 });
 

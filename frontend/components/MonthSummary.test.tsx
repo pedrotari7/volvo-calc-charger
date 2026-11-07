@@ -36,7 +36,9 @@ describe('MonthSummary', () => {
 
 	it('marks the peak fee as an estimate unless final', () => {
 		const peaks = { month: '2026-11', top3: [], estimatedFee: 5, final: false };
-		const { rerender } = render(<MonthSummary month='2026-11' totals={totals([session('a')], peaks)} final={false} />);
+		const { rerender } = render(
+			<MonthSummary month='2026-11' totals={totals([session('a')], peaks)} final={false} />
+		);
 		expect(screen.getByText('Peak fee (estimate)')).toBeInTheDocument();
 		expect(screen.getByText('5,00 kr')).toBeInTheDocument();
 		rerender(<MonthSummary month='2026-11' totals={totals([session('a')], peaks)} final />);
@@ -44,7 +46,13 @@ describe('MonthSummary', () => {
 	});
 
 	it('shows the pending count and dashes without odometer data', () => {
-		const t = monthTotals([session('a'), session('b', { status: 'pending', cost: null })], '2026-11', [], null, DEFAULT_SETTINGS);
+		const t = monthTotals(
+			[session('a'), session('b', { status: 'pending', cost: null })],
+			'2026-11',
+			[],
+			null,
+			DEFAULT_SETTINGS
+		);
 		render(<MonthSummary month='2026-11' totals={t} final={false} />);
 		expect(screen.getByText('1 pending')).toBeInTheDocument();
 		expect(screen.getAllByText('–').length).toBeGreaterThan(0);

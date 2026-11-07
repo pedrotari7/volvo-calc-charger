@@ -44,7 +44,10 @@ describe('CarPage', () => {
 
 	it('links to Apple Maps and shows the OSM tile with attribution', () => {
 		render(<CarPage />);
-		expect(screen.getByRole('link', { name: 'Open in Maps' })).toHaveAttribute('href', expect.stringContaining('ll=59.31,18.16'));
+		expect(screen.getByRole('link', { name: 'Open in Maps' })).toHaveAttribute(
+			'href',
+			expect.stringContaining('ll=59.31,18.16')
+		);
 		expect(screen.getByRole('img')).toHaveAttribute('src', 'https://tile.openstreetmap.org/16/36073/19280.png');
 		expect(screen.getByRole('link', { name: '© OpenStreetMap contributors' })).toBeInTheDocument();
 	});

@@ -70,7 +70,7 @@ export const CommandButtons = ({ locked }: { locked: boolean | null }) => {
 
 	return (
 		<div {...stylex.props(styles.row)}>
-			{ACTIONS.filter((a) => !(a.command === 'lockCar' && locked === true)).map((a) => (
+			{ACTIONS.filter(a => !(a.command === 'lockCar' && locked === true)).map(a => (
 				<button
 					key={a.command}
 					type='button'

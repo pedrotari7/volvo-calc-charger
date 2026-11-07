@@ -145,12 +145,17 @@ describe('runPollCar', () => {
 describe('createVolvoClient', () => {
 	it('sends the api key and bearer, and resolves undefined on a failed section', async () => {
 		const fetchFn = vi.fn(async (url: string | URL | Request) =>
-			String(url).endsWith('/doors') ? new Response('{}', { status: 500 }) : new Response('{"ok":1}', { status: 200 })
+			String(url).endsWith('/doors')
+				? new Response('{}', { status: 500 })
+				: new Response('{"ok":1}', { status: 200 })
 		);
 		const c = createVolvoClient('KEY', async () => 'TOK', fetchFn as unknown as typeof fetch);
 		expect(await c.section(FULL_VIN, 'doors')).toBeUndefined();
 		expect(await c.section(FULL_VIN, 'odometer')).toEqual({ ok: 1 });
-		const headers = (fetchFn.mock.calls[1] as unknown as [string, RequestInit])[1].headers as Record<string, string>;
+		const headers = (fetchFn.mock.calls[1] as unknown as [string, RequestInit])[1].headers as Record<
+			string,
+			string
+		>;
 		expect(headers['vcc-api-key']).toBe('KEY');
 		expect(headers.Authorization).toBe('Bearer TOK');
 	});

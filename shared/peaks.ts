@@ -36,7 +36,15 @@ export function computeMonthPeaks(month: string, sessions: Session[], tariff: Ta
 		}
 	}
 	const top3 = top3Of(hours);
-	return { month, top3, estimatedFee: feeFor(top3.map((h) => h.kW), tariff), final: false };
+	return {
+		month,
+		top3,
+		estimatedFee: feeFor(
+			top3.map(h => h.kW),
+			tariff
+		),
+		final: false,
+	};
 }
 
 export function peakShares(peaks: MonthPeaks): Record<string, number> {
@@ -76,6 +84,9 @@ export function peakIncrease(peaks: MonthPeaks, extraHours: SessionHour[], tarif
 		if (monthKey(e.hourStartUtc) !== peaks.month) continue;
 		addTo(hours, e.hourStartUtc, EXTRA_ID, e.kWh);
 	}
-	const fee = feeFor(top3Of(hours).map((h) => h.kW), tariff);
+	const fee = feeFor(
+		top3Of(hours).map(h => h.kW),
+		tariff
+	);
 	return Math.max(0, fee - peaks.estimatedFee);
 }

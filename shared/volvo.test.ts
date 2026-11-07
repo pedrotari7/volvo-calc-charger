@@ -53,7 +53,7 @@ describe('parseCarState', () => {
 		const c = parseCarState({ ...all, doors: undefined }, NOW);
 		expect(c.locked).toBeNull();
 		expect(c.battery).not.toBeNull();
-		expect(Object.keys(c.openings?.value ?? {}).some((k) => k.startsWith('door:'))).toBe(false);
+		expect(Object.keys(c.openings?.value ?? {}).some(k => k.startsWith('door:'))).toBe(false);
 		expect(c.openings?.value['window:rearLeft']).toBe('open');
 	});
 
@@ -65,7 +65,10 @@ describe('parseCarState', () => {
 	});
 
 	it('malformed section yields null without throwing', () => {
-		const c = parseCarState({ ...all, energy: 'junk', odometer: { data: { odometer: { value: 'x' } } }, location: {} }, NOW);
+		const c = parseCarState(
+			{ ...all, energy: 'junk', odometer: { data: { odometer: { value: 'x' } } }, location: {} },
+			NOW
+		);
 		expect(c.battery).toBeNull();
 		expect(c.odometerKm).toBeNull();
 		expect(c.location).toBeNull();

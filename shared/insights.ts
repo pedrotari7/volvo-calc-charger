@@ -18,15 +18,15 @@ export function monthTotals(
 	month: string,
 	odometer: { km: number; date: string }[],
 	peaks: MonthPeaks | null,
-	settings: Settings,
+	settings: Settings
 ): MonthTotals {
-	const inMonth = sessions.filter((s) => monthKey(s.startUtc) === month);
-	const priced = inMonth.filter((s) => s.status === 'priced' && s.cost);
+	const inMonth = sessions.filter(s => monthKey(s.startUtc) === month);
+	const priced = inMonth.filter(s => s.status === 'priced' && s.cost);
 	const peakFee = peaks?.estimatedFee ?? null;
 	const cost = priced.reduce((a, s) => a + (s.cost?.total ?? 0), 0) + (peakFee ?? 0);
 	const pricedKwh = priced.reduce((a, s) => a + s.kWh, 0);
 
-	const readings = odometer.filter((o) => o.date.startsWith(month)).sort((a, b) => a.date.localeCompare(b.date));
+	const readings = odometer.filter(o => o.date.startsWith(month)).sort((a, b) => a.date.localeCompare(b.date));
 	const delta = readings.length >= 2 ? readings[readings.length - 1]!.km - readings[0]!.km : 0;
 	const km = delta > 0 ? delta : null;
 	const petrolCost = km === null ? null : (km / 100) * settings.petrol.litresPer100km * settings.petrol.krPerLitre;

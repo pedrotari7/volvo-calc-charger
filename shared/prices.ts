@@ -31,5 +31,5 @@ export function spotForHour(days: Record<string, PriceDay>, hourStartUtc: IsoUtc
 }
 
 export function priceDocDatesFor(hours: IsoUtc[]): string[] {
-	return [...new Set(hours.map((h) => localDateOf(floorHourUtc(h))))];
+	return [...new Set(hours.map(h => localDateOf(floorHourUtc(h))))];
 }

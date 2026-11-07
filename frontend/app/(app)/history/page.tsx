@@ -30,7 +30,7 @@ const HistoryPage = () => {
 	const settingsDoc = useDoc<Partial<Settings>>('config/settings');
 
 	const settings = useMemo<Settings>(() => ({ ...DEFAULT_SETTINGS, ...settingsDoc.data }), [settingsDoc.data]);
-	const readings = useMemo(() => odometer.data.map((o) => ({ km: o.km, date: o.id })), [odometer.data]);
+	const readings = useMemo(() => odometer.data.map(o => ({ km: o.km, date: o.id })), [odometer.data]);
 
 	const groups = useMemo(() => {
 		const byMonth = new Map<string, PricedSession[]>();
@@ -69,7 +69,7 @@ const HistoryPage = () => {
 			) : null}
 			{groups.length === 0 ? <p {...stylex.props(styles.note)}>No sessions yet</p> : null}
 			{groups.map(([month, list]) => {
-				const monthPeaks = peaks.data.find((p) => p.id === month) ?? null;
+				const monthPeaks = peaks.data.find(p => p.id === month) ?? null;
 				return (
 					<div key={month} {...stylex.props(styles.group)}>
 						<MonthSummary
@@ -77,7 +77,7 @@ const HistoryPage = () => {
 							totals={monthTotals(list, month, readings, monthPeaks, settings)}
 							final={monthPeaks?.final === true}
 						/>
-						{list.map((s) => (
+						{list.map(s => (
 							<SessionRow key={s.id} session={s} />
 						))}
 					</div>

@@ -84,7 +84,8 @@ export async function repriceAndUpdatePeaks(sessionIds: string[]): Promise<void>
 	const monthShares = async (month: string): Promise<Record<string, number>> => {
 		let shares = sharesOf.get(month);
 		if (!shares) {
-			const peaks = computed.get(month) ?? ((await db.doc(`peaks/${month}`).get()).data() as MonthPeaks | undefined);
+			const peaks =
+				computed.get(month) ?? ((await db.doc(`peaks/${month}`).get()).data() as MonthPeaks | undefined);
 			shares = peaks ? peakShares(peaks) : {};
 			sharesOf.set(month, shares);
 		}
@@ -93,7 +94,8 @@ export async function repriceAndUpdatePeaks(sessionIds: string[]): Promise<void>
 	const out = db.batch();
 	for (const s of affected.values()) {
 		let total = 0;
-		for (const month of new Set(s.hours.map(h => monthKey(h.hourStartUtc)))) total += (await monthShares(month))[s.id] ?? 0;
+		for (const month of new Set(s.hours.map(h => monthKey(h.hourStartUtc))))
+			total += (await monthShares(month))[s.id] ?? 0;
 		out.update(db.doc(`sessions/${s.id}`), { peakShare: total });
 	}
 	await out.commit();

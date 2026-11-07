@@ -47,9 +47,7 @@ const Body = ({ plan }: { plan: Plan }) => {
 					Charging at {rec.kw} kW instead of {alt.kw} kW saves {formatKr(saving)}
 				</p>
 			) : null}
-			{plan.basis === 'today' ? (
-				<p {...stylex.props(styles.note)}>Prices for tomorrow not out yet</p>
-			) : null}
+			{plan.basis === 'today' ? <p {...stylex.props(styles.note)}>Prices for tomorrow not out yet</p> : null}
 		</>
 	);
 };

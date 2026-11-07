@@ -5,8 +5,18 @@ import { leftOpenIssues, leftOpenMessage, reconnectDue, shouldSendLeftOpen } fro
 const AT = '2026-11-06T18:00:00.000Z' as IsoUtc;
 function car(over: Partial<CarState>): CarState {
 	return {
-		vinLast4: '0001', battery: null, locked: null, openings: null, tyres: null, warnings: null,
-		service: null, odometerKm: null, location: null, trips: null, updatedAt: AT, ...over,
+		vinLast4: '0001',
+		battery: null,
+		locked: null,
+		openings: null,
+		tyres: null,
+		warnings: null,
+		service: null,
+		odometerKm: null,
+		location: null,
+		trips: null,
+		updatedAt: AT,
+		...over,
 	};
 }
 
@@ -74,7 +84,7 @@ describe('leftOpenMessage', () => {
 	it('uses human labels', () => {
 		expect(leftOpenMessage(['unlocked', 'window:rearLeft'])).toBe('XC40 is unlocked · rear left window open');
 		expect(leftOpenMessage(['door:frontRight', 'tailgate', 'sunroof', 'hood'])).toBe(
-			'XC40: front right door open · tailgate open · sunroof open · hood open',
+			'XC40: front right door open · tailgate open · sunroof open · hood open'
 		);
 		expect(leftOpenMessage(['unlocked'])).toBe('XC40 is unlocked');
 		expect(leftOpenMessage([])).toBe('');

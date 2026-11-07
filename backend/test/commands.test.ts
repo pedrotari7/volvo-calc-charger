@@ -14,7 +14,11 @@ const auth = (email: string) =>
 const VIN = 'YV1TESTVIN0001234';
 const vehiclesBody = { data: [{ vin: VIN }] };
 
-function setup(commandRes: Response | (() => Response), vehicles: unknown = vehiclesBody, getToken = async () => 'tok') {
+function setup(
+	commandRes: Response | (() => Response),
+	vehicles: unknown = vehiclesBody,
+	getToken = async () => 'tok'
+) {
 	const fetchFn = vi.fn(async (url: string | URL | Request) => {
 		const u = String(url);
 		if (u.endsWith('/connected-vehicle/v2/vehicles')) return json(200, vehicles);
@@ -66,13 +70,9 @@ describe('runCommand', () => {
 	});
 
 	it('maps VolvoReconnectRequired to failed-precondition volvo-reconnect', async () => {
-		const { fetchFn, deps } = setup(
-			json(200, {}),
-			vehiclesBody,
-			async () => {
-				throw new VolvoReconnectRequired();
-			}
-		);
+		const { fetchFn, deps } = setup(json(200, {}), vehiclesBody, async () => {
+			throw new VolvoReconnectRequired();
+		});
 		await expect(runCommand(auth('me@x.se'), 'lock', deps)).rejects.toMatchObject({
 			code: 'failed-precondition',
 			message: 'volvo-reconnect',

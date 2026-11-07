@@ -93,13 +93,24 @@ describe('runPollZaptec', () => {
 
 	it('attaches the plan of the previous evening to a session starting after midnight', async () => {
 		// Session 5e1f… starts 2026-11-02T23:02Z = 00:02 local on 3 Nov, so it belongs to the 2 Nov evening plan.
-		const rec = { kw: 3.6, start: '2026-11-02T23:00:00.000Z', end: '2026-11-03T07:00:00.000Z', energyCost: 10.25, peakIncrease: 2.25, cost: 12.5 };
+		const rec = {
+			kw: 3.6,
+			start: '2026-11-02T23:00:00.000Z',
+			end: '2026-11-03T07:00:00.000Z',
+			energyCost: 10.25,
+			peakIncrease: 2.25,
+			cost: 12.5,
+		};
 		await db.doc('plans/2026-11-02').set({ recommendation: rec });
 		await db.doc('plans/2026-11-03').set({ recommendation: { ...rec, cost: 99, energyCost: 99 } });
 		await runPollZaptec(NOW, { client: stubClient() });
 		const id = '5e1f0c7a-3b92-4d6e-a8f4-1c7d92b0e3a5';
 		expect((await db.doc(`sessions/${id}`).get()).data()!.planned).toEqual({
-			kw: 3.6, start: rec.start, end: rec.end, energyCost: 10.25, cost: 12.5,
+			kw: 3.6,
+			start: rec.start,
+			end: rec.end,
+			energyCost: 10.25,
+			cost: 12.5,
 		});
 		const other = '0b8d2e64-91a7-4f3c-b5e0-7a4c1d83f926';
 		expect((await db.doc(`sessions/${other}`).get()).data()!.planned).toBeNull();
@@ -109,7 +120,14 @@ describe('runPollZaptec', () => {
 		const id = '5e1f0c7a-3b92-4d6e-a8f4-1c7d92b0e3a5';
 		const one = { Pages: 1, Data: [history.Data.find((d: { Id: string }) => d.Id === id)] };
 		// Window is [start - 3 h, end] = [00:01Z, 07:00Z]; the session starts 23:02Z the day before.
-		const rec = { kw: 3.6, start: '2026-11-03T03:01:00.000Z', end: '2026-11-03T07:00:00.000Z', energyCost: 1, peakIncrease: 0, cost: 1 };
+		const rec = {
+			kw: 3.6,
+			start: '2026-11-03T03:01:00.000Z',
+			end: '2026-11-03T07:00:00.000Z',
+			energyCost: 1,
+			peakIncrease: 0,
+			cost: 1,
+		};
 		await db.doc('plans/2026-11-02').set({ recommendation: rec });
 		await runPollZaptec(NOW, { client: stubClient(one) });
 		expect((await db.doc(`sessions/${id}`).get()).data()!.planned).toBeNull();
@@ -143,7 +161,10 @@ describe('runPollZaptec', () => {
 
 describe('runPollZaptec resilience', () => {
 	it('keeps polling sessions when chargerState fails, without writing charger state or lastOkAt', async () => {
-		const client = { history: vi.fn(async () => history), chargerState: vi.fn(async () => Promise.reject(new Error('zaptec 500'))) };
+		const client = {
+			history: vi.fn(async () => history),
+			chargerState: vi.fn(async () => Promise.reject(new Error('zaptec 500'))),
+		};
 		const r = await runPollZaptec(NOW, { client });
 		expect(r.newSessions).toHaveLength(4);
 		expect((await db.doc('charger/state').get()).exists).toBe(false);
@@ -199,7 +220,10 @@ describe('runPollZaptec notification retry', () => {
 		const details = row.EnergyDetails.map((d: { Timestamp: string; Energy: number }, i: number) =>
 			i === 2 ? { ...d, Energy: d.Energy + 3 } : d
 		);
-		const grown = { Pages: 1, Data: [{ ...row, Energy: row.Energy + 3, EndDateTime: '2026-11-03T08:45:00', EnergyDetails: details }] };
+		const grown = {
+			Pages: 1,
+			Data: [{ ...row, Energy: row.Energy + 3, EndDateTime: '2026-11-03T08:45:00', EnergyDetails: details }],
+		};
 		const r = await runPollZaptec('2026-11-03T09:05:00.000Z', { client: stubClient(grown) });
 		expect(r.newSessions).toEqual([]);
 		const after = (await db.doc(`sessions/${ID}`).get()).data()!;
@@ -218,7 +242,17 @@ describe('runPollZaptec notification retry', () => {
 		await runPollZaptec(NOW, { client: stubClient(one) });
 		const row = one.Data[0];
 		const late = { Timestamp: '2026-11-04T02:00:00.000+00:00', Energy: 1 };
-		const grown = { Pages: 1, Data: [{ ...row, Energy: row.Energy + 1, EndDateTime: '2026-11-04T02:00:00', EnergyDetails: [...row.EnergyDetails, late] }] };
+		const grown = {
+			Pages: 1,
+			Data: [
+				{
+					...row,
+					Energy: row.Energy + 1,
+					EndDateTime: '2026-11-04T02:00:00',
+					EnergyDetails: [...row.EnergyDetails, late],
+				},
+			],
+		};
 		await runPollZaptec('2026-11-04T03:00:00.000Z', { client: stubClient(grown) });
 		const after = (await db.doc(`sessions/${ID}`).get()).data()!;
 		expect(after.status).toBe('pending');

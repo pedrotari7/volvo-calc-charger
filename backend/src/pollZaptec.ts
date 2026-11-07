@@ -113,7 +113,10 @@ export async function runPollZaptec(nowUtc: IsoUtc, deps: PollZaptecDeps): Promi
 			await db.doc(`sessions/${id}`).update({ notified: true });
 		} catch (e) {
 			ok = false;
-			logger.warn('pollZaptec: notify failed', { sessionId: id, error: e instanceof Error ? e.message : 'unknown' });
+			logger.warn('pollZaptec: notify failed', {
+				sessionId: id,
+				error: e instanceof Error ? e.message : 'unknown',
+			});
 		}
 	}
 

@@ -21,12 +21,15 @@ const TermsPage = () => (
 		</Section>
 		<Section title='What the app can do to the car'>
 			<p>
-				The only commands the app sends are lock and climate (start or stop cabin climatisation). The app
-				never unlocks the car and does not request the permission needed to do so.
+				The only commands the app sends are lock and climate (start or stop cabin climatisation). The app never
+				unlocks the car and does not request the permission needed to do so.
 			</p>
 		</Section>
 		<Section title='Where data is stored'>
-			<p>Data is stored in Google Firebase in the europe-west1 region (Belgium). See the privacy page for details.</p>
+			<p>
+				Data is stored in Google Firebase in the europe-west1 region (Belgium). See the privacy page for
+				details.
+			</p>
 		</Section>
 		<Section title='Revoking access'>
 			<p>

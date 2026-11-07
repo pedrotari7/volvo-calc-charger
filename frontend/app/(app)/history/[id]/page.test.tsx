@@ -8,14 +8,19 @@ import { TEST_TARIFF } from '@shared/testdata';
 import type { PriceDay, PricedSession } from '@shared/types';
 import { parseZaptecSessions } from '@shared/zaptec';
 
-const fixture = JSON.parse(readFileSync(resolve(__dirname, '../../../../../backend/test/fixtures/zaptec/chargehistory.json'), 'utf8'));
+const fixture = JSON.parse(
+	readFileSync(resolve(__dirname, '../../../../../backend/test/fixtures/zaptec/chargehistory.json'), 'utf8')
+);
 const raw = parseZaptecSessions(fixture)[0]!;
 
-const quarter = (hh: string, mm: string, v: number) => ({ start: `2026-11-03T${hh}:${mm}:00+01:00`, sekPerKwhExVat: v });
+const quarter = (hh: string, mm: string, v: number) => ({
+	start: `2026-11-03T${hh}:${mm}:00+01:00`,
+	sekPerKwhExVat: v,
+});
 const day: PriceDay = {
 	date: '2026-11-03',
 	quarters: [
-		...['00', '15', '30', '45'].map((m) => quarter('00', m, 0.8)),
+		...['00', '15', '30', '45'].map(m => quarter('00', m, 0.8)),
 		...['00', '15', '30', '45'].map((m, i) => quarter('01', m, [0.6, 0.62, 0.58, 0.6][i]!)),
 	],
 };
@@ -25,7 +30,9 @@ const session: PricedSession = { ...raw, ...priced, peakShare: 2.5, planned: nul
 const useDoc = vi.fn((_p: string): unknown => ({ data: session, loading: false, error: null }));
 const useCollection = vi.fn((_p: string, ..._r: unknown[]): unknown => ({ data: [], loading: false, error: null }));
 vi.mock('../../../../lib/useDoc', () => ({ useDoc: (p: string) => useDoc(p) }));
-vi.mock('../../../../lib/useCollection', () => ({ useCollection: (p: string, c?: unknown, e?: boolean) => useCollection(p, c, e) }));
+vi.mock('../../../../lib/useCollection', () => ({
+	useCollection: (p: string, c?: unknown, e?: boolean) => useCollection(p, c, e),
+}));
 vi.mock('next/navigation', () => ({ useParams: () => ({ id: raw.id }) }));
 vi.mock('firebase/firestore', () => ({ documentId: () => 'id', where: (...a: unknown[]) => a }));
 
@@ -71,14 +78,22 @@ describe('SessionDetailPage', () => {
 
 	it('shows Price pending for a pending session', () => {
 		useDoc.mockReturnValue({ data: { ...session, status: 'pending', cost: null }, loading: false, error: null });
-		useCollection.mockImplementation((p: string) => ({ data: p === 'prices' ? [] : [{ ...TEST_TARIFF }], loading: false, error: null }));
+		useCollection.mockImplementation((p: string) => ({
+			data: p === 'prices' ? [] : [{ ...TEST_TARIFF }],
+			loading: false,
+			error: null,
+		}));
 		render(<SessionDetailPage />);
 		expect(screen.getByText('Price pending')).toBeInTheDocument();
 		expect(screen.queryByText('18,66 kr')).toBeNull();
 	});
 
 	it('keeps the stored headline when prices are missing', () => {
-		useCollection.mockImplementation((p: string) => ({ data: p === 'prices' ? [] : [{ ...TEST_TARIFF }], loading: false, error: null }));
+		useCollection.mockImplementation((p: string) => ({
+			data: p === 'prices' ? [] : [{ ...TEST_TARIFF }],
+			loading: false,
+			error: null,
+		}));
 		render(<SessionDetailPage />);
 		expect(screen.queryByText('Price pending')).toBeNull();
 		expect(screen.getByText('18,66 kr')).toBeInTheDocument();
@@ -88,7 +103,11 @@ describe('SessionDetailPage', () => {
 	it('notes when the breakdown differs from the stored total', () => {
 		const { rerender } = render(<SessionDetailPage />);
 		expect(screen.queryByText('Breakdown uses current prices and tariffs')).toBeNull();
-		useDoc.mockReturnValue({ data: { ...session, cost: { ...session.cost!, total: 20 } }, loading: false, error: null });
+		useDoc.mockReturnValue({
+			data: { ...session, cost: { ...session.cost!, total: 20 } },
+			loading: false,
+			error: null,
+		});
 		rerender(<SessionDetailPage />);
 		expect(screen.getByText('20,00 kr')).toBeInTheDocument();
 		expect(screen.getByText('Breakdown uses current prices and tariffs')).toBeInTheDocument();

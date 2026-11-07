@@ -16,7 +16,10 @@ const quarters = (date: string, hour: number, prices: number[]) =>
 
 const day3: PriceDay = {
 	date: '2026-11-03',
-	quarters: [...quarters('2026-11-03', 0, [0.8, 0.8, 0.8, 0.8]), ...quarters('2026-11-03', 1, [0.6, 0.62, 0.58, 0.6])],
+	quarters: [
+		...quarters('2026-11-03', 0, [0.8, 0.8, 0.8, 0.8]),
+		...quarters('2026-11-03', 1, [0.6, 0.62, 0.58, 0.6]),
+	],
 };
 const days = { '2026-11-03': day3 };
 const tariffs = [TEST_TARIFF];
@@ -54,15 +57,21 @@ describe('priceSession', () => {
 		expect(priceSession(s, { '2026-11-03': d }, tariffs).cost!.transfer).toBeCloseTo(0.5888, 6);
 	});
 
-	it('uses each hour\'s own tariff across a tariff boundary', () => {
+	it("uses each hour's own tariff across a tariff boundary", () => {
 		const t2: Tariff = { ...TEST_TARIFF, id: 't2', effectiveFrom: '2026-07-01', vatRate: 0.5, energyTaxPerKwh: 1 };
 		const jun: PriceDay = {
 			date: '2026-06-30',
-			quarters: ['21:00', '21:15', '21:30', '21:45'].map((t) => ({ start: `2026-06-30T${t}:00+02:00`, sekPerKwhExVat: 1 })),
+			quarters: ['21:00', '21:15', '21:30', '21:45'].map(t => ({
+				start: `2026-06-30T${t}:00+02:00`,
+				sekPerKwhExVat: 1,
+			})),
 		};
 		const jul: PriceDay = {
 			date: '2026-07-01',
-			quarters: ['00:00', '00:15', '00:30', '00:45'].map((t) => ({ start: `2026-07-01T${t}:00+02:00`, sekPerKwhExVat: 1 })),
+			quarters: ['00:00', '00:15', '00:30', '00:45'].map(t => ({
+				start: `2026-07-01T${t}:00+02:00`,
+				sekPerKwhExVat: 1,
+			})),
 		};
 		const s: Session = {
 			id: 'x',

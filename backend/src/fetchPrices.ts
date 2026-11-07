@@ -35,7 +35,10 @@ export async function runFetchPrices(
 			written.push(date);
 		} catch (e) {
 			failed.push(date);
-			logger.warn('fetchPrices: day failed', { date, status: e instanceof ElprisetHttpError ? e.status : undefined });
+			logger.warn('fetchPrices: day failed', {
+				date,
+				status: e instanceof ElprisetHttpError ? e.status : undefined,
+			});
 		}
 	}
 
@@ -50,17 +53,23 @@ export async function runFetchPrices(
 			await deps.onTomorrowArrived();
 		} catch (e) {
 			hookFailed = true;
-			logger.error('fetchPrices: onTomorrowArrived failed', { message: e instanceof Error ? e.message : String(e) });
+			logger.error('fetchPrices: onTomorrowArrived failed', {
+				message: e instanceof Error ? e.message : String(e),
+			});
 		}
 	}
 	if (failed.length > 0 || hookFailed) {
-		const parts = [...(failed.length > 0 ? [`failed days: ${failed.join(', ')}`] : []), ...(hookFailed ? ['tomorrow hook failed'] : [])];
+		const parts = [
+			...(failed.length > 0 ? [`failed days: ${failed.join(', ')}`] : []),
+			...(hookFailed ? ['tomorrow hook failed'] : []),
+		];
 		throw new Error(`fetchPrices: ${parts.join('; ')}`);
 	}
 	return { written, repriced, tomorrowArrived };
 }
 
-const run = () => runFetchPrices(new Date().toISOString(), { onTomorrowArrived: () => runPlanTonight(new Date().toISOString()) });
+const run = () =>
+	runFetchPrices(new Date().toISOString(), { onTomorrowArrived: () => runPlanTonight(new Date().toISOString()) });
 
 export const fetchPrices = onSchedule({ schedule: 'every day 13:30', timeZone: 'Europe/Stockholm' }, async () => {
 	await run();

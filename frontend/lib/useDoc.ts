@@ -10,16 +10,16 @@ export interface DocState<T> {
 	error: Error | null;
 }
 
-export const useDoc = <T,>(path: string): DocState<T> => {
+export const useDoc = <T>(path: string): DocState<T> => {
 	const [state, setState] = useState<DocState<T>>({ data: null, loading: true, error: null });
 
 	useEffect(() => {
-		setState((s) => (s.loading && !s.error ? s : { data: null, loading: true, error: null }));
+		setState(s => (s.loading && !s.error ? s : { data: null, loading: true, error: null }));
 
 		return onSnapshot(
 			doc(getDb(), path),
-			(snap) => setState({ data: snap.exists() ? (snap.data() as T) : null, loading: false, error: null }),
-			(error) => setState({ data: null, loading: false, error }),
+			snap => setState({ data: snap.exists() ? (snap.data() as T) : null, loading: false, error: null }),
+			error => setState({ data: null, loading: false, error })
 		);
 	}, [path]);
 

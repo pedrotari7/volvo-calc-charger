@@ -66,7 +66,9 @@ describe('runFetchPrices', () => {
 		const onTomorrowArrived = vi.fn(async () => {
 			throw new Error('boom');
 		});
-		await expect(runFetchPrices(NOW, { fetchFn: stubFetch(), onTomorrowArrived })).rejects.toThrow(/tomorrow hook failed/);
+		await expect(runFetchPrices(NOW, { fetchFn: stubFetch(), onTomorrowArrived })).rejects.toThrow(
+			/tomorrow hook failed/
+		);
 		expect(onTomorrowArrived).toHaveBeenCalledTimes(1);
 		expect((await db.doc('prices/2026-11-04').get()).exists).toBe(true);
 	});
@@ -211,7 +213,8 @@ describe('sendPush', () => {
 		const m = {
 			sendEachForMulticast: vi.fn(async ({ tokens }: { tokens: string[] }) => ({
 				responses: tokens.map(t => {
-					if (t === 'dead') return { success: false, error: { code: 'messaging/registration-token-not-registered' } };
+					if (t === 'dead')
+						return { success: false, error: { code: 'messaging/registration-token-not-registered' } };
 					if (t === 'bad') return { success: false, error: { code: 'messaging/invalid-registration-token' } };
 					return ok;
 				}),
@@ -225,7 +228,11 @@ describe('sendPush', () => {
 
 	it('releases the dedupe key when FCM throws so a retry can send', async () => {
 		await db.doc('users/u1/pushTokens/tok1').set({});
-		const bad = { sendEachForMulticast: vi.fn(async () => { throw new Error('fcm down'); }) };
+		const bad = {
+			sendEachForMulticast: vi.fn(async () => {
+				throw new Error('fcm down');
+			}),
+		};
 		await expect(sendPush(input, bad as never)).rejects.toThrow('fcm down');
 		expect((await db.doc('private/notified/keys/k1').get()).exists).toBe(false);
 		expect(await sendPush(input, messaging([ok]) as never)).toBe('sent');

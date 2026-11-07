@@ -201,7 +201,7 @@ export function parseCarState(
 		diagnostics?: unknown;
 		statistics?: unknown;
 	},
-	nowUtc: IsoUtc,
+	nowUtc: IsoUtc
 ): CarState {
 	const list = isObj(raw.vehicles) ? raw.vehicles.data : undefined;
 	const first = Array.isArray(list) ? list[0] : undefined;
