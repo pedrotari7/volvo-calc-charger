@@ -7,6 +7,9 @@ const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'volvo-calc-cha
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+	// Always defined (empty when unset) so the build folds the emulator flag to a constant and
+	// drops the dev-only sign-in code, credentials included, from production bundles.
+	env: { NEXT_PUBLIC_USE_EMULATORS: process.env.NEXT_PUBLIC_USE_EMULATORS ?? '' },
 	// `shared/` lives outside this package.
 	outputFileTracingRoot: path.join(__dirname, '../'),
 	experimental: { externalDir: true },

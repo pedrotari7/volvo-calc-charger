@@ -10,7 +10,6 @@ import {
 	signInWithPopup,
 	signOut as fbSignOut,
 } from 'firebase/auth';
-import { DEV_USER } from '@shared/devUser';
 import { doc, getDoc } from 'firebase/firestore';
 import { getAuthClient, getDb } from './firebaseClient';
 
@@ -82,7 +81,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 	}, []);
 
 	const signInDev = useCallback(async () => {
-		await signInWithEmailAndPassword(getAuthClient(), DEV_USER.email, DEV_USER.password);
+		// The flag is tested inline so the production build folds it to a constant and drops
+		// this branch, and with it the dynamic import: the dev credentials never reach the bundle.
+		if (process.env.NEXT_PUBLIC_USE_EMULATORS === '1') {
+			const { DEV_USER } = await import('@shared/devUser');
+			await signInWithEmailAndPassword(getAuthClient(), DEV_USER.email, DEV_USER.password);
+		} else {
+			throw new Error('Dev sign-in is only available against the emulators');
+		}
 	}, []);
 
 	const signOut = useCallback(() => fbSignOut(getAuthClient()), []);

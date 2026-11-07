@@ -44,9 +44,16 @@ async function seedDevUser(): Promise<void> {
 }
 
 async function main(): Promise<void> {
-	// Never seed a real project by accident.
-	if (!process.env.FIRESTORE_EMULATOR_HOST || !process.env.FIREBASE_AUTH_EMULATOR_HOST) {
-		throw new Error('Refusing to seed: run inside the emulators (pnpm dev:seeded / pnpm test:e2e).');
+	// Never seed a real project by accident: a demo project and both emulators, or nothing.
+	const projectId = process.env.GCLOUD_PROJECT ?? '';
+	if (
+		!projectId.startsWith('demo-') ||
+		!process.env.FIRESTORE_EMULATOR_HOST ||
+		!process.env.FIREBASE_AUTH_EMULATOR_HOST
+	) {
+		throw new Error(
+			'Refusing to seed: needs a demo-* project and the Auth and Firestore emulators (pnpm dev:seeded / pnpm test:e2e).'
+		);
 	}
 	const now = new Date().toISOString();
 

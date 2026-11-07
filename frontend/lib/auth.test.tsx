@@ -1,6 +1,7 @@
 import { act, render, screen, waitFor } from '@testing-library/react';
 import { DEV_USER } from '@shared/devUser';
 import AppLayout from '../app/(app)/layout';
+import { AuthProvider, useAuth } from './auth';
 
 const mocks = vi.hoisted(() => ({
 	getDoc: vi.fn(),
@@ -53,12 +54,33 @@ describe('auth gate', () => {
 		expect(screen.queryByRole('button', { name: 'Sign in as dev user' })).not.toBeInTheDocument();
 	});
 
+	it('refuses signInDev when the emulators flag is off', async () => {
+		vi.stubEnv('NEXT_PUBLIC_USE_EMULATORS', '');
+		let signInDev: () => Promise<void> = async () => {};
+		const Probe = () => {
+			signInDev = useAuth().signInDev;
+			return null;
+		};
+		render(
+			<AuthProvider>
+				<Probe />
+			</AuthProvider>
+		);
+
+		const error = await signInDev().then(
+			() => null,
+			(e: unknown) => e
+		);
+		expect(String(error)).toMatch(/emulators/);
+		expect(mocks.signInEmail).not.toHaveBeenCalled();
+	});
+
 	it('offers the dev sign-in against the emulators and uses the shared credentials', async () => {
 		vi.stubEnv('NEXT_PUBLIC_USE_EMULATORS', '1');
 		await signedOut();
 
 		screen.getByRole('button', { name: 'Sign in as dev user' }).click();
-		expect(mocks.signInEmail).toHaveBeenCalledWith({}, DEV_USER.email, DEV_USER.password);
+		await waitFor(() => expect(mocks.signInEmail).toHaveBeenCalledWith({}, DEV_USER.email, DEV_USER.password));
 	});
 
 	it('shows a sign-in button when signed out', async () => {

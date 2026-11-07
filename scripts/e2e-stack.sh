@@ -19,30 +19,14 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-STATUS="${TMPDIR:-/tmp}/volvo-e2e-frontend-build"
-: > "$STATUS"
-
 export NEXT_PUBLIC_USE_EMULATORS=1
 export NEXT_PUBLIC_FIREBASE_PROJECT_ID=demo-volvo
 export NEXT_PUBLIC_FIREBASE_API_KEY=fake-api-key
 
-(
-	if pnpm --filter frontend build; then
-		printf 'ok' > "$STATUS"
-	else
-		printf 'failed' > "$STATUS"
-	fi
-) &
+# Built in the foreground, before anything else is started: no background
+# process to orphan if Playwright tears this down mid-build, and no marker file
+# to poll. A failed build stops the script (set -e), so the webServer never
+# comes up rather than a stale build being tested.
+pnpm --filter frontend build
 
-# Written as a variable so the quoting is legible: `$STATUS` is this shell's,
-# `\$(cat …)` is the inner one's. A failed build stops the `&&` chain, which
-# surfaces as the webServer never coming up rather than a stale build being tested.
-serve=$(cat <<SHELL
-while [ ! -s "$STATUS" ]; do sleep 0.5; done &&
-[ "\$(cat "$STATUS")" = ok ] &&
-pnpm seed &&
-pnpm --filter frontend start
-SHELL
-)
-
-exec scripts/emulators.sh "$serve" --only auth,firestore --project demo-volvo
+exec scripts/emulators.sh 'pnpm seed && pnpm --filter frontend start' --only auth,firestore --project demo-volvo
