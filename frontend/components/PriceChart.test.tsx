@@ -51,12 +51,44 @@ describe('PriceChart', () => {
 		expect(screen.getByTestId('price-range')).toHaveTextContent('Today 150–179 öre · cheapest 00:00');
 	});
 
+	// 48 hourly slots over a 480 px wide chart: slot i spans x = 10i … 10i + 10.
+	const chart = (container: HTMLElement) => {
+		const svg = container.querySelector('svg')!;
+		svg.getBoundingClientRect = () => ({ left: 0, width: 480, top: 0, height: 100 }) as DOMRect;
+		return svg;
+	};
+	const touch = { pointerType: 'touch', pointerId: 1 };
+
 	it('shows the price of a tapped hour and labels hours under the bars', () => {
 		const { container } = render(<PriceChart days={days} tariffs={[tariff]} now={NOW} window={null} />);
-		fireEvent.click(container.querySelectorAll('rect')[30]!);
+		const svg = chart(container);
+		fireEvent.pointerDown(svg, { ...touch, clientX: 305 });
+		fireEvent.pointerUp(svg, { ...touch, clientX: 305 });
 		expect(screen.getByTestId('price-readout')).toHaveTextContent('Tomorrow 06:00 220 öre/kWh');
 		const ticks = [...container.querySelectorAll('text')].map(t => t.textContent);
 		expect(ticks).toEqual(expect.arrayContaining(['00', '06', '12', '18']));
+	});
+
+	it('follows a finger dragged across the bars', () => {
+		const { container } = render(<PriceChart days={days} tariffs={[tariff]} now={NOW} window={null} />);
+		const svg = chart(container);
+		fireEvent.pointerDown(svg, { ...touch, clientX: 305 });
+		fireEvent.pointerMove(svg, { ...touch, clientX: 25 });
+		expect(screen.getByTestId('price-readout')).toHaveTextContent('Today 02:00 153 öre/kWh');
+		fireEvent.pointerMove(svg, { ...touch, clientX: 9999 });
+		expect(screen.getByTestId('price-readout')).toHaveTextContent('Tomorrow 23:00 241 öre/kWh');
+		fireEvent.pointerUp(svg, { ...touch, clientX: 9999 });
+		expect(screen.getByTestId('price-readout')).toHaveTextContent('Tomorrow 23:00');
+	});
+
+	it('goes back to now when the focused bar is tapped again', () => {
+		const { container } = render(<PriceChart days={days} tariffs={[tariff]} now={NOW} window={null} />);
+		const svg = chart(container);
+		for (let k = 0; k < 2; k++) {
+			fireEvent.pointerDown(svg, { ...touch, clientX: 305 });
+			fireEvent.pointerUp(svg, { ...touch, clientX: 305 });
+		}
+		expect(screen.getByTestId('price-readout')).toHaveTextContent('Now 11:00');
 	});
 
 	it('switches to 15-minute bars and back', () => {

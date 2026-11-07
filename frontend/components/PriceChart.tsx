@@ -4,7 +4,8 @@ import * as stylex from '@stylexjs/stylex';
 import { allInRateInclVat, quarterRatesInclVat } from '@shared/pricing';
 import { addHours, floorHourUtc, localDateOf, localParts } from '@shared/time';
 import type { IsoUtc, PriceDay, Tariff } from '@shared/types';
-import { useEffect, useState } from 'react';
+import type { PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { colors } from '../app/tokens.stylex';
 
 const W = 340;
@@ -41,7 +42,14 @@ const styles = stylex.create({
 		cursor: 'pointer',
 	},
 	toggleOn: { backgroundColor: colors.raised, color: colors.ink },
-	svg: { width: '100%', height: 'auto', display: 'block', touchAction: 'manipulation' },
+	svg: {
+		width: '100%',
+		height: 'auto',
+		display: 'block',
+		touchAction: 'pan-y',
+		userSelect: 'none',
+		WebkitUserSelect: 'none',
+	},
 	bar: { fill: colors.faint, cursor: 'pointer' },
 	plan: { fill: colors.brand, cursor: 'pointer' },
 	current: { stroke: colors.ink, strokeWidth: 1.5 },
@@ -84,6 +92,8 @@ const readMode = (): Mode => {
 export const PriceChart = ({ days, tariffs, now, window: planWindow }: Props) => {
 	const [mode, setMode] = useState<Mode>('hour');
 	const [picked, setPicked] = useState<IsoUtc | null>(null);
+	// Active touch/pen drag: where it started, and whether that bar was already focused (tap again clears).
+	const drag = useRef<{ id: number; start: IsoUtc; wasPicked: boolean; moved: boolean } | null>(null);
 	useEffect(() => setMode(readMode()), []);
 	const choose = (m: Mode) => {
 		setMode(m);
@@ -145,6 +155,39 @@ export const PriceChart = ({ days, tariffs, now, window: planWindow }: Props) =>
 	const winStart = planWindow ? Date.parse(planWindow.start) : 0;
 	const winEnd = planWindow ? Date.parse(planWindow.end) : 0;
 	const firstTomorrow = slots.findIndex(s => localDateOf(s.start) === tomorrow);
+	// Slot under a screen x, snapped to the nearest bar that has a price.
+	const slotAt = (e: ReactPointerEvent<SVGSVGElement>): IsoUtc | null => {
+		const box = e.currentTarget.getBoundingClientRect();
+		if (box.width <= 0) return null;
+		const raw = Math.floor(((e.clientX - box.left) / box.width) * slots.length);
+		const i = Math.min(Math.max(raw, 0), slots.length - 1);
+		let best: Slot | null = null;
+		for (let d = 0; d < slots.length && !best; d++) {
+			for (const j of [i - d, i + d]) if (!best && slots[j]?.rate != null) best = slots[j]!;
+		}
+		return best?.start ?? null;
+	};
+	const onDown = (e: ReactPointerEvent<SVGSVGElement>) => {
+		if (e.pointerType === 'mouse' && e.button !== 0) return;
+		const s = slotAt(e);
+		if (!s) return;
+		e.currentTarget.setPointerCapture?.(e.pointerId);
+		drag.current = { id: e.pointerId, start: s, wasPicked: picked === s, moved: false };
+		setPicked(s);
+	};
+	const onMove = (e: ReactPointerEvent<SVGSVGElement>) => {
+		const d = drag.current;
+		if (!d && e.pointerType !== 'mouse') return;
+		const s = slotAt(e);
+		if (!s) return;
+		if (d && s !== d.start) d.moved = true;
+		setPicked(s);
+	};
+	const onUp = () => {
+		const d = drag.current;
+		drag.current = null;
+		if (d && !d.moved && d.wasPicked) setPicked(null);
+	};
 	const barH = (rate: number) => Math.max(1, (Math.max(rate, 0) / top) * plotH);
 	const extremes: { kind: 'low' | 'high'; slot: PricedSlot }[] = [];
 	for (const list of [todaySlots, tomorrowSlots]) {
@@ -183,7 +226,16 @@ export const PriceChart = ({ days, tariffs, now, window: planWindow }: Props) =>
 			<span data-testid='price-range' {...stylex.props(styles.readoutSub)}>
 				{[range('Today', todaySlots), range('Tomorrow', tomorrowSlots)].filter(Boolean).join('  ·  ')}
 			</span>
-			<svg role='img' aria-label={label} viewBox={`0 0 ${W} ${H}`} {...stylex.props(styles.svg)}>
+			<svg
+				role='img'
+				aria-label={label}
+				viewBox={`0 0 ${W} ${H}`}
+				onPointerDown={onDown}
+				onPointerMove={onMove}
+				onPointerUp={onUp}
+				onPointerCancel={() => (drag.current = null)}
+				{...stylex.props(styles.svg)}
+			>
 				{slots.map((s, i) => {
 					if (s.rate === null) return null;
 					const h = barH(s.rate);
@@ -201,8 +253,6 @@ export const PriceChart = ({ days, tariffs, now, window: planWindow }: Props) =>
 							width={Math.max(slotW - gap, 0.5)}
 							height={h}
 							rx={mode === 'hour' ? 1.5 : 0.5}
-							onClick={() => setPicked(p => (p === s.start ? null : s.start))}
-							onPointerEnter={e => e.pointerType === 'mouse' && setPicked(s.start)}
 							{...stylex.props(
 								inPlan ? styles.plan : styles.bar,
 								picked === s.start && styles.selected,
