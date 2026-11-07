@@ -23,6 +23,13 @@ export async function runFetchPrices(
 	const dates = [tomorrow, today];
 	for (let k = 1; k <= 7; k++) dates.push(localDateOf(addHours(nowUtc, -24 * k)));
 
+	// Older days that pending sessions still need (e.g. history imported on first deploy).
+	const pendingDocs = (await db.collection('sessions').where('status', '==', 'pending').get()).docs;
+	for (const d of pendingDocs) {
+		const hours = (d.get('hours') as { hourStartUtc: IsoUtc }[] | undefined) ?? [];
+		for (const h of hours) if (h.hourStartUtc < nowUtc) dates.push(localDateOf(h.hourStartUtc));
+	}
+
 	const written: string[] = [];
 	const failed: string[] = [];
 	for (const date of [...new Set(dates)]) {

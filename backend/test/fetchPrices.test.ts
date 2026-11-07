@@ -95,6 +95,20 @@ describe('runFetchPrices', () => {
 	});
 });
 
+describe('runFetchPrices backfill', () => {
+	it('fetches older days that pending sessions need, by local date', async () => {
+		await db.doc(`tariffs/${TEST_TARIFF.id}`).set(TEST_TARIFF);
+		// 2026-09-05T22:30Z is 00:30 local on 2026-09-06 (CEST).
+		await seedSession('old', '2026-09-05T22:00:00.000Z', 5);
+		const fetchFn = stubFetch();
+		const r = await runFetchPrices(NOW, { fetchFn, onTomorrowArrived: async () => {} });
+		expect(r.written).toContain('2026-09-06');
+		expect(r.written).not.toContain('2026-09-05');
+		expect((await db.doc('prices/2026-09-06').get()).exists).toBe(true);
+		expect(r.repriced).toContain('old');
+	});
+});
+
 describe('runFetchPrices resilience', () => {
 	it('re-prices sessions pending for a missing tariff without writing prices', async () => {
 		await runFetchPrices(NOW, { fetchFn: stubFetch(), onTomorrowArrived: async () => {} });
