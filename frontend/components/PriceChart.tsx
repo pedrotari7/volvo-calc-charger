@@ -9,7 +9,7 @@ import { colors } from '../app/tokens.stylex';
 
 const W = 340;
 const H = 130;
-const PAD_TOP = 12;
+const PAD_TOP = 22;
 const PAD_BOTTOM = 26;
 const TICKS = [0, 6, 12, 18];
 const QUARTER_MS = 15 * 60_000;
@@ -46,7 +46,8 @@ const styles = stylex.create({
 	plan: { fill: colors.brand, cursor: 'pointer' },
 	current: { stroke: colors.ink, strokeWidth: 1.5 },
 	selected: { fill: colors.ink },
-	grid: { stroke: colors.line, strokeWidth: 0.5, strokeDasharray: '2 2' },
+	lowMark: { fill: colors.good, fontSize: 9, fontWeight: 600 },
+	highMark: { fill: colors.bad, fontSize: 9, fontWeight: 600 },
 	label: { fill: colors.muted, fontSize: 9 },
 	tick: { fill: colors.faint, fontSize: 8 },
 	empty: { fontSize: 13, color: colors.muted },
@@ -144,6 +145,15 @@ export const PriceChart = ({ days, tariffs, now, window: planWindow }: Props) =>
 	const winStart = planWindow ? Date.parse(planWindow.start) : 0;
 	const winEnd = planWindow ? Date.parse(planWindow.end) : 0;
 	const firstTomorrow = slots.findIndex(s => localDateOf(s.start) === tomorrow);
+	const barH = (rate: number) => Math.max(1, (Math.max(rate, 0) / top) * plotH);
+	const extremes: { kind: 'low' | 'high'; slot: PricedSlot }[] = [];
+	for (const list of [todaySlots, tomorrowSlots]) {
+		if (list.length === 0) continue;
+		const lo = lowest(list);
+		const hi = highest(list);
+		extremes.push({ kind: 'low', slot: lo });
+		if (hi.rate > lo.rate) extremes.push({ kind: 'high', slot: hi });
+	}
 
 	return (
 		<div {...stylex.props(styles.wrap)}>
@@ -174,13 +184,9 @@ export const PriceChart = ({ days, tariffs, now, window: planWindow }: Props) =>
 				{[range('Today', todaySlots), range('Tomorrow', tomorrowSlots)].filter(Boolean).join('  ·  ')}
 			</span>
 			<svg role='img' aria-label={label} viewBox={`0 0 ${W} ${H}`} {...stylex.props(styles.svg)}>
-				<line x1={0} x2={W} y1={PAD_TOP} y2={PAD_TOP} {...stylex.props(styles.grid)} />
-				<text x={W - 2} y={PAD_TOP - 3} textAnchor='end' {...stylex.props(styles.tick)}>
-					{ore(top)} öre
-				</text>
 				{slots.map((s, i) => {
 					if (s.rate === null) return null;
-					const h = Math.max(1, (Math.max(s.rate, 0) / top) * plotH);
+					const h = barH(s.rate);
 					const t = Date.parse(s.start);
 					const inPlan = planWindow !== null && t >= winStart && t < winEnd;
 					const isNow = s.start === nowSlot;
@@ -203,6 +209,30 @@ export const PriceChart = ({ days, tariffs, now, window: planWindow }: Props) =>
 								isNow && styles.current
 							)}
 						/>
+					);
+				})}
+				{extremes.map(({ kind, slot }) => {
+					const i = slots.indexOf(slot);
+					const cx = i * slotW + slotW / 2;
+					const y = PAD_TOP + plotH - barH(slot.rate);
+
+					return (
+						<g key={`${kind}${slot.start}`} data-extreme={kind}>
+							<circle
+								cx={cx}
+								cy={y - 4}
+								r={2}
+								{...stylex.props(kind === 'low' ? styles.lowMark : styles.highMark)}
+							/>
+							<text
+								x={Math.min(Math.max(cx, 9), W - 9)}
+								y={y - 9}
+								textAnchor='middle'
+								{...stylex.props(kind === 'low' ? styles.lowMark : styles.highMark)}
+							>
+								{ore(slot.rate)}
+							</text>
+						</g>
 					);
 				})}
 				{slots.map((s, i) =>

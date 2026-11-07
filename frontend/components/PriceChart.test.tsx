@@ -79,6 +79,15 @@ describe('PriceChart', () => {
 		expect(container.querySelectorAll('rect')).toHaveLength(48);
 	});
 
+	it('marks the lowest and highest bar of each day with its value', () => {
+		const { container } = render(<PriceChart days={days} tariffs={[tariff]} now={NOW} window={null} />);
+		const marks = [...container.querySelectorAll('[data-extreme]')].map(
+			m => `${m.getAttribute('data-extreme')} ${m.textContent}`
+		);
+		// Today 00:00 150, 23:00 179; tomorrow 00:00 212.5 → 213, 23:00 241.25 → 241.
+		expect(marks).toEqual(['low 150', 'high 179', 'low 213', 'high 241']);
+	});
+
 	it('says when tomorrow is not published yet', () => {
 		render(<PriceChart days={{ '2026-11-07': days['2026-11-07']! }} tariffs={[tariff]} now={NOW} window={null} />);
 		expect(screen.getByText(/prices from ~13:00/i)).toBeInTheDocument();
