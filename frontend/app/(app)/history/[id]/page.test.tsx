@@ -2,6 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { formatKr } from '@shared/format';
 import { priceSession } from '@shared/pricing';
 import { TEST_TARIFF } from '@shared/testdata';
 import type { PriceDay, PricedSession } from '@shared/types';
@@ -52,8 +53,15 @@ describe('SessionDetailPage', () => {
 		expect(within(table).getByText('01:00')).toBeInTheDocument();
 		expect(within(table).getAllByRole('row')).toHaveLength(4); // header + 2 hours + footer
 		expect(screen.getByText('18,66 kr')).toBeInTheDocument();
+	});
+
+	it('shows the peak share in kr and the total including it', () => {
+		render(<SessionDetailPage />);
 		expect(screen.getByText(/Peak fee share/)).toBeInTheDocument();
-		expect(screen.getByText('2,5 kW')).toBeInTheDocument();
+		expect(screen.getByText('2,50 kr')).toBeInTheDocument();
+		expect(screen.queryByText(/kW$/)).toBeNull();
+		expect(screen.getByText('Total incl. peak share')).toBeInTheDocument();
+		expect(screen.getByText(formatKr(session.cost!.total + 2.5))).toBeInTheDocument();
 	});
 
 	it('links back to history', () => {

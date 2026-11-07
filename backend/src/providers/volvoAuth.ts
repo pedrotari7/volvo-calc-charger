@@ -48,6 +48,14 @@ export class VolvoReconnectRequired extends Error {
 	}
 }
 
+/** Volvo answered the code exchange with a non-2xx; carries the HTTP status only, never the body. */
+export class VolvoExchangeError extends Error {
+	constructor(readonly status: number) {
+		super(`Volvo code exchange failed (${status})`);
+		this.name = 'VolvoExchangeError';
+	}
+}
+
 const REFRESH_MARGIN_MS = 60_000;
 const LEASE_MS = 30_000;
 const LEASE_POLL_MS = 100;
@@ -123,7 +131,7 @@ export async function exchangeCode(
 		creds,
 		fetchFn
 	);
-	if (!res.ok) throw new Error(`Volvo code exchange failed (${res.status})`);
+	if (!res.ok) throw new VolvoExchangeError(res.status);
 	return parseTokenSet(res);
 }
 

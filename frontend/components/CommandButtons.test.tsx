@@ -25,10 +25,10 @@ describe('CommandButtons', () => {
 
 	it('shows Lock when not locked and calls lockCar after confirm', async () => {
 		vi.stubGlobal('confirm', () => true);
-		callable.mockResolvedValue({ data: { message: 'Car locked' } });
+		callable.mockResolvedValue({ data: { ok: true, status: 'COMPLETED' } });
 		render(<CommandButtons locked={false} />);
 		fireEvent.click(screen.getByRole('button', { name: 'Lock' }));
-		expect(await screen.findByText('Car locked')).toBeInTheDocument();
+		expect(await screen.findByText('Done')).toBeInTheDocument();
 		expect(httpsCallable).toHaveBeenCalledWith(expect.anything(), 'lockCar');
 	});
 
@@ -37,6 +37,29 @@ describe('CommandButtons', () => {
 		render(<CommandButtons locked={false} />);
 		fireEvent.click(screen.getByRole('button', { name: 'Start climate' }));
 		expect(callable).not.toHaveBeenCalled();
+	});
+
+	it('shows Failed with the message, or the status, when the car rejects the command', async () => {
+		vi.stubGlobal('confirm', () => true);
+		callable.mockResolvedValueOnce({ data: { ok: false, status: 'REJECTED', message: 'Car is asleep' } });
+		render(<CommandButtons locked={false} />);
+		fireEvent.click(screen.getByRole('button', { name: 'Start climate' }));
+		expect(await screen.findByText('Failed: Car is asleep')).toBeInTheDocument();
+		callable.mockResolvedValueOnce({ data: { ok: false, status: 'TIMEOUT' } });
+		fireEvent.click(screen.getByRole('button', { name: 'Start climate' }));
+		expect(await screen.findByText('Failed: TIMEOUT')).toBeInTheDocument();
+	});
+
+	it('maps callable error codes to readable messages', async () => {
+		vi.stubGlobal('confirm', () => true);
+		const err = (code: string) => Object.assign(new Error(code), { name: 'FirebaseError', code: `functions/${code}` });
+		callable.mockRejectedValueOnce(err('failed-precondition'));
+		render(<CommandButtons locked={false} />);
+		fireEvent.click(screen.getByRole('button', { name: 'Lock' }));
+		expect(await screen.findByText('Reconnect Volvo in Settings')).toBeInTheDocument();
+		callable.mockRejectedValueOnce(err('not-found'));
+		fireEvent.click(screen.getByRole('button', { name: 'Lock' }));
+		expect(await screen.findByText('No car found')).toBeInTheDocument();
 	});
 
 	it('shows an error message when the call fails', async () => {

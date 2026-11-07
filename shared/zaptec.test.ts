@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { parseZaptecSessions, parseZaptecTime } from './zaptec';
+import { parseZaptecSessions, parseZaptecSessionsSafe, parseZaptecTime } from './zaptec';
 
 const fixture = (): unknown =>
 	JSON.parse(readFileSync(new URL('../backend/test/fixtures/zaptec/chargehistory.json', import.meta.url), 'utf8'));
@@ -103,5 +103,23 @@ describe('parseZaptecSessions', () => {
 		const sum = s.hours.reduce((a, h) => a + h.kWh, 0);
 		expect(Math.abs(sum - 42.104)).toBeLessThan(0.003);
 		expect(new Set(s.hours.map((h) => h.hourStartUtc)).size).toBe(s.hours.length);
+	});
+});
+
+describe('parseZaptecSessionsSafe', () => {
+	const good = { Id: 'g', StartDateTime: '2026-11-02T23:02:05', EndDateTime: '2026-11-03T01:00:00', Energy: 2, EnergyDetails: [] };
+	it('skips a malformed row and keeps the rest', () => {
+		const bad = { ...good, Id: 'b', StartDateTime: 'not a date' };
+		const r = parseZaptecSessionsSafe({ Data: [bad, good, 'junk'] });
+		expect(r.sessions.map(s => s.id)).toEqual(['g']);
+		expect(r.skipped).toBe(1);
+	});
+	it('reports nothing skipped for a clean page, and zero-energy rows are not counted as skipped', () => {
+		const r = parseZaptecSessionsSafe({ Data: [good, { ...good, Id: 'z', Energy: 0 }] });
+		expect(r).toMatchObject({ skipped: 0 });
+		expect(r.sessions).toHaveLength(1);
+	});
+	it('still throws when the page has no Data array', () => {
+		expect(() => parseZaptecSessionsSafe({ nope: true })).toThrow();
 	});
 });

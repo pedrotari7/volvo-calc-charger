@@ -31,16 +31,16 @@ describe('SessionRow', () => {
 		expect(screen.queryByText(/kr\/kWh/)).toBeNull();
 	});
 
-	it('shows the signed delta against the plan', () => {
-		const planned = { kw: 3.7, start: base.startUtc, end: base.endUtc, cost: 17.46 };
+	it('shows the signed delta against the planned energy cost, not the cost incl. peak increase', () => {
+		const planned = { kw: 3.7, start: base.startUtc, end: base.endUtc, energyCost: 17.46, cost: 25 };
 		const { rerender } = render(<SessionRow session={{ ...base, planned }} />);
 		expect(screen.getByText('+1,20 kr vs plan')).toBeInTheDocument();
-		rerender(<SessionRow session={{ ...base, planned: { ...planned, cost: 20 } }} />);
+		rerender(<SessionRow session={{ ...base, planned: { ...planned, energyCost: 20, cost: 22 } }} />);
 		expect(screen.getByText('-1,34 kr vs plan')).toBeInTheDocument();
 	});
 
 	it('omits the delta when pending', () => {
-		const planned = { kw: 3.7, start: base.startUtc, end: base.endUtc, cost: 17 };
+		const planned = { kw: 3.7, start: base.startUtc, end: base.endUtc, energyCost: 17, cost: 17 };
 		render(<SessionRow session={{ ...base, status: 'pending', cost: null, planned }} />);
 		expect(screen.queryByText(/vs plan/)).toBeNull();
 	});

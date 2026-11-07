@@ -53,6 +53,15 @@ export function peakShares(peaks: MonthPeaks): Record<string, number> {
 	return out;
 }
 
+/** Each session's peak-fee share summed over every month given (a session crossing months gets both). */
+export function sumPeakShares(months: MonthPeaks[]): Record<string, number> {
+	const out: Record<string, number> = {};
+	for (const m of months) {
+		for (const [id, v] of Object.entries(peakShares(m))) out[id] = (out[id] ?? 0) + v;
+	}
+	return out;
+}
+
 /**
  * Fee increase for `peaks.month` if `extraHours` were charged. Extra hours whose local month
  * differs from `peaks.month` are ignored; callers needing another month's increase must call

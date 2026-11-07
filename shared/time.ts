@@ -54,6 +54,18 @@ export function localDateOf(iso: string): string {
   return localParts(iso).date;
 }
 
+/**
+ * The evening a moment belongs to, as the `plans/{date}` key: the local date from 12:00 on,
+ * otherwise the previous local date. Steps back a calendar day, not 24 hours, so DST is harmless.
+ */
+export function eveningDateOf(iso: string): string {
+  const p = localParts(iso);
+  if (p.hour >= 12) return p.date;
+  const [y, m, d] = p.date.split('-').map(Number) as [number, number, number];
+  const prev = new Date(Date.UTC(y, m - 1, d - 1));
+  return `${pad(prev.getUTCFullYear(), 4)}-${pad(prev.getUTCMonth() + 1)}-${pad(prev.getUTCDate())}`;
+}
+
 export function monthKey(iso: string): string {
   return localDateOf(iso).slice(0, 7);
 }

@@ -29,7 +29,7 @@ const styles = stylex.create({
 
 export const SessionRow = ({ session: s }: { session: PricedSession }) => {
 	const total = s.status === 'priced' && s.cost ? s.cost.total : null;
-	const delta = total !== null && s.planned ? total - s.planned.cost : null;
+	const delta = total !== null && s.planned ? total - s.planned.energyCost : null;
 
 	return (
 		<Link href={`/history/${s.id}`} {...stylex.props(styles.row)}>

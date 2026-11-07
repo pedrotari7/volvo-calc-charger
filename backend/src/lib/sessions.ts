@@ -3,7 +3,7 @@ import { priceDocDatesFor } from '../../../shared/prices';
 import { priceSession } from '../../../shared/pricing';
 import { selectTariff } from '../../../shared/tariff';
 import { addHours, monthKey } from '../../../shared/time';
-import type { PriceDay, Session, Tariff } from '../../../shared/types';
+import type { MonthPeaks, PriceDay, Session, Tariff } from '../../../shared/types';
 import { db } from './firebase';
 
 const sessionOf = (d: FirebaseFirestore.DocumentSnapshot): Session => ({ ...(d.data() as Session), id: d.id });
@@ -14,6 +14,22 @@ function firstHourOfMonth(month: string): string {
 	t = addHours(t, -2);
 	while (monthKey(t) !== month) t = addHours(t, 1);
 	return t;
+}
+
+function nextMonth(month: string): string {
+	const [y, m] = month.split('-').map(Number) as [number, number];
+	return m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`;
+}
+
+/**
+ * The tariff for a month's peak fee: the one in force at the month's first hour, else the one in force
+ * at its last hour (a tariff that starts mid-month), else none.
+ */
+function tariffForMonth(tariffs: Tariff[], month: string): Tariff | null {
+	return (
+		selectTariff(tariffs, firstHourOfMonth(month)) ??
+		selectTariff(tariffs, addHours(firstHourOfMonth(nextMonth(month)), -1))
+	);
 }
 
 async function loadPriceDays(dates: string[]): Promise<Record<string, PriceDay>> {
@@ -50,16 +66,35 @@ export async function repriceAndUpdatePeaks(sessionIds: string[]): Promise<void>
 	}
 	await batch.commit();
 
+	const computed = new Map<string, MonthPeaks>();
+	const affected = new Map<string, Session>();
 	for (const month of months) {
-		const tariff = selectTariff(tariffs, firstHourOfMonth(month));
+		const tariff = tariffForMonth(tariffs, month);
 		if (!tariff) continue;
 		const all = await sessionsOfMonth(month);
 		const peaks = computeMonthPeaks(month, all, tariff);
-		const shares = peakShares(peaks);
 		const existing = (await db.doc(`peaks/${month}`).get()).data();
-		const out = db.batch();
-		out.set(db.doc(`peaks/${month}`), { ...peaks, final: existing?.final ?? false });
-		for (const s of all) out.update(db.doc(`sessions/${s.id}`), { peakShare: shares[s.id] ?? 0 });
-		await out.commit();
+		await db.doc(`peaks/${month}`).set({ ...peaks, final: existing?.final ?? false });
+		computed.set(month, peaks);
+		for (const s of all) affected.set(s.id, s);
 	}
+
+	// A session's peakShare is the sum of its shares in every month it touches.
+	const sharesOf = new Map<string, Record<string, number>>();
+	const monthShares = async (month: string): Promise<Record<string, number>> => {
+		let shares = sharesOf.get(month);
+		if (!shares) {
+			const peaks = computed.get(month) ?? ((await db.doc(`peaks/${month}`).get()).data() as MonthPeaks | undefined);
+			shares = peaks ? peakShares(peaks) : {};
+			sharesOf.set(month, shares);
+		}
+		return shares;
+	};
+	const out = db.batch();
+	for (const s of affected.values()) {
+		let total = 0;
+		for (const month of new Set(s.hours.map(h => monthKey(h.hourStartUtc)))) total += (await monthShares(month))[s.id] ?? 0;
+		out.update(db.doc(`sessions/${s.id}`), { peakShare: total });
+	}
+	await out.commit();
 }

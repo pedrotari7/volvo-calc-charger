@@ -2,7 +2,7 @@
 
 import * as stylex from '@stylexjs/stylex';
 import { allInRateInclVat } from '@shared/pricing';
-import { addHours, floorHourUtc, localParts } from '@shared/time';
+import { addHours, eveningDateOf, floorHourUtc, localParts } from '@shared/time';
 import type { CarState, ChargerState, PriceDay, Plan, Tariff } from '@shared/types';
 import { documentId, where } from 'firebase/firestore';
 import { useMemo } from 'react';
@@ -30,9 +30,9 @@ const Note = ({ error, children }: { error?: boolean; children: string }) => (
 
 const HomePage = () => {
 	const now = useNow();
-	const { date: today, hour } = localParts(now);
+	const today = localParts(now).date;
 	const tomorrow = localParts(addHours(now, 24)).date;
-	const eveningDate = hour >= 12 ? today : localParts(addHours(now, -12)).date;
+	const eveningDate = eveningDateOf(now);
 
 	const car = useDoc<CarState>('car/state');
 	const charger = useDoc<ChargerState>('charger/state');

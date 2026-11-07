@@ -1,11 +1,12 @@
 import { randomBytes } from 'node:crypto';
 import type { CallableRequest } from 'firebase-functions/v2/https';
+import { logger } from 'firebase-functions/v2';
 import { onCall, onRequest } from 'firebase-functions/v2/https';
 import { assertAllowed } from './lib/allowlist';
 import { db } from './lib/firebase';
 import { VOLVO_CLIENT_ID, VOLVO_CLIENT_SECRET } from './lib/secrets';
 import type { FetchFn, VolvoCreds } from './providers/volvoAuth';
-import { buildAuthorizeUrl, createPkcePair, exchangeCode } from './providers/volvoAuth';
+import { buildAuthorizeUrl, createPkcePair, exchangeCode, VolvoExchangeError } from './providers/volvoAuth';
 
 const SETTINGS_URL = 'https://volvo-calc-charger.vercel.app/settings';
 const FLOW_TTL_MS = 10 * 60_000;
@@ -58,7 +59,12 @@ export async function handleVolvoCallback(
 		batch.set(db.doc('status/volvo'), { connected: true, grantStartedAt, lastRefreshError: null });
 		await batch.commit();
 		return `${SETTINGS_URL}?volvo=connected`;
-	} catch {
+	} catch (err) {
+		// Status and error class only: never the response body, the code or any token.
+		logger.warn('volvoCallback: code exchange failed', {
+			status: err instanceof VolvoExchangeError ? err.status : null,
+			errorClass: err instanceof Error ? err.name : typeof err,
+		});
 		return redirectError('exchange');
 	}
 }

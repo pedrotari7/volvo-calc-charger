@@ -1,9 +1,9 @@
 import { logger } from 'firebase-functions/v2';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { formatKr, formatKwh } from '../../shared/format';
-import { localDateOf } from '../../shared/time';
-import type { IsoUtc, PricedSession } from '../../shared/types';
-import { parseZaptecSessions } from '../../shared/zaptec';
+import { eveningDateOf } from '../../shared/time';
+import type { IsoUtc, Plan, PricedSession, Session, SessionHour } from '../../shared/types';
+import { parseZaptecSessionsSafe } from '../../shared/zaptec';
 import { db } from './lib/firebase';
 import { sendPush } from './lib/push';
 import { ZAPTEC_PASSWORD, ZAPTEC_USERNAME } from './lib/secrets';
@@ -15,15 +15,42 @@ export interface PollZaptecDeps {
 	client: ZaptecClient;
 }
 
+const sameHours = (a: SessionHour[], b: SessionHour[]): boolean =>
+	a.length === b.length && a.every((h, i) => h.hourStartUtc === b[i].hourStartUtc && h.kWh === b[i].kWh);
+
+const PLAN_LEAD_MS = 3 * 3_600_000;
+const NOTIFY_WINDOW_MS = 24 * 3_600_000;
+
+/**
+ * The recommendation of the evening plan the session belongs to, if the session started within
+ * [recommendation.start - 3 h, recommendation.end]; otherwise null.
+ */
+async function plannedFor(s: Session): Promise<PricedSession['planned']> {
+	const plan = (await db.doc(`plans/${eveningDateOf(s.startUtc)}`).get()).data() as Plan | undefined;
+	const rec = plan?.recommendation;
+	if (!rec) return null;
+	const t = Date.parse(s.startUtc);
+	if (t < Date.parse(rec.start) - PLAN_LEAD_MS || t > Date.parse(rec.end)) return null;
+	return { kw: rec.kw, start: rec.start, end: rec.end, energyCost: rec.energyCost, cost: rec.cost };
+}
+
 export async function runPollZaptec(nowUtc: IsoUtc, deps: PollZaptecDeps): Promise<{ newSessions: string[] }> {
 	const { client } = deps;
-	const state = await client.chargerState();
-	await db.doc('charger/state').set({ ...state, updatedAt: nowUtc });
+	let ok = true;
+	try {
+		const state = await client.chargerState();
+		await db.doc('charger/state').set({ ...state, updatedAt: nowUtc });
+	} catch (e) {
+		ok = false;
+		logger.warn('pollZaptec: charger state failed', { error: e instanceof Error ? e.message : 'unknown' });
+	}
 
 	const page = await client.history();
 	let parsed;
 	try {
-		parsed = parseZaptecSessions(page);
+		const r = parseZaptecSessionsSafe(page);
+		parsed = r.sessions;
+		if (r.skipped > 0) logger.warn('pollZaptec: skipped malformed sessions', { skipped: r.skipped });
 	} catch (e) {
 		logger.warn('pollZaptec: malformed history page', { error: e instanceof Error ? e.message : 'unknown' });
 		return { newSessions: [] };
@@ -32,9 +59,18 @@ export async function runPollZaptec(nowUtc: IsoUtc, deps: PollZaptecDeps): Promi
 	const known = await Promise.all(parsed.map(s => db.doc(`sessions/${s.id}`).get()));
 	const fresh = parsed.filter((_, i) => !known[i].exists);
 
+	// A known session whose energy changed (Zaptec finalised it later) is updated and repriced.
+	// `notified` is never touched, so it is not pushed again.
+	const changed: string[] = [];
+	for (const [i, s] of parsed.entries()) {
+		const stored = known[i].data() as PricedSession | undefined;
+		if (!stored) continue;
+		if (stored.kWh === s.kWh && sameHours(stored.hours, s.hours)) continue;
+		await db.doc(`sessions/${s.id}`).update({ kWh: s.kWh, hours: s.hours, endUtc: s.endUtc, status: 'pending' });
+		changed.push(s.id);
+	}
+
 	for (const s of fresh) {
-		const plan = (await db.doc(`plans/${localDateOf(s.startUtc)}`).get()).data();
-		const rec = plan?.recommendation as PricedSession['planned'];
 		const doc: Omit<PricedSession, 'id'> & { notified: boolean } = {
 			startUtc: s.startUtc,
 			endUtc: s.endUtc,
@@ -43,16 +79,16 @@ export async function runPollZaptec(nowUtc: IsoUtc, deps: PollZaptecDeps): Promi
 			status: 'pending',
 			cost: null,
 			peakShare: 0,
-			notified: false,
-			planned: rec ? { kw: rec.kw, start: rec.start, end: rec.end, cost: rec.cost } : null,
+			// Sessions that ended long ago (e.g. history read on first deploy) are not pushed.
+			notified: Date.parse(s.endUtc) < Date.parse(nowUtc) - NOTIFY_WINDOW_MS,
+			planned: await plannedFor(s),
 		};
 		await db.doc(`sessions/${s.id}`).set(doc);
 	}
 
 	const newSessions = fresh.map(s => s.id);
-	let ok = true;
 	try {
-		await repriceAndUpdatePeaks(newSessions);
+		await repriceAndUpdatePeaks([...newSessions, ...changed]);
 	} catch (e) {
 		ok = false;
 		logger.warn('pollZaptec: pricing failed', { error: e instanceof Error ? e.message : 'unknown' });

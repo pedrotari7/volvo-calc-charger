@@ -82,3 +82,23 @@ export function parseZaptecSessions(page: unknown): Session[] {
 	if (!Array.isArray(data)) throw new Error('Zaptec page has no Data array');
 	return data.map(parseSession).filter((s): s is Session => s !== null);
 }
+
+/**
+ * Like `parseZaptecSessions`, but a row that fails to parse (for example a bad timestamp) is skipped
+ * and counted instead of failing the whole page. A page without a Data array still throws.
+ */
+export function parseZaptecSessionsSafe(page: unknown): { sessions: Session[]; skipped: number } {
+	const data = isObj(page) ? get(page, 'data') : undefined;
+	if (!Array.isArray(data)) throw new Error('Zaptec page has no Data array');
+	const sessions: Session[] = [];
+	let skipped = 0;
+	for (const raw of data) {
+		try {
+			const s = parseSession(raw);
+			if (s) sessions.push(s);
+		} catch {
+			skipped++;
+		}
+	}
+	return { sessions, skipped };
+}

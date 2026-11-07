@@ -71,7 +71,7 @@ export interface PricedSession extends Session {
 	status: 'priced' | 'pending';
 	cost: CostBreakdown | null;
 	peakShare: number;
-	planned: Pick<PlanCandidate, 'kw' | 'start' | 'end' | 'cost'> | null;
+	planned: Pick<PlanCandidate, 'kw' | 'start' | 'end' | 'energyCost' | 'cost'> | null;
 }
 
 export interface PeakHour {

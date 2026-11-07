@@ -132,7 +132,8 @@ const SessionDetailPage = () => {
 				<h1 {...stylex.props(styles.title)}>{localDateOf(s.startUtc)}</h1>
 				<StatusRow label='Energy' value={formatKwh(s.kWh)} />
 				{storedTotal !== null ? <StatusRow label='Total incl. VAT' value={formatKr(storedTotal)} /> : <StatusRow label='Total' value='Price pending' />}
-				<StatusRow label='Peak fee share' value={`${s.peakShare.toLocaleString('sv-SE', { maximumFractionDigits: 1 })} kW`} />
+				<StatusRow label='Peak fee share' value={formatKr(s.peakShare)} />
+				{storedTotal !== null ? <StatusRow label='Total incl. peak share' value={formatKr(storedTotal + s.peakShare)} /> : null}
 			</section>
 			{tableError ? (
 				<p role='alert' {...stylex.props(styles.error)}>

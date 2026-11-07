@@ -2,12 +2,12 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { getAuth } from 'firebase-admin/auth';
 import { DEV_USER } from '../../shared/devUser';
-import { computeMonthPeaks, peakShares } from '../../shared/peaks';
+import { computeMonthPeaks, sumPeakShares } from '../../shared/peaks';
 import { planTonight } from '../../shared/planner';
 import { parseElpriset } from '../../shared/prices';
 import { priceSession } from '../../shared/pricing';
 import { TEST_TARIFF } from '../../shared/testdata';
-import { addHours, localDateOf, localParts, monthKey } from '../../shared/time';
+import { eveningDateOf, localDateOf, monthKey } from '../../shared/time';
 import type { MonthPeaks, PriceDay, Settings } from '../../shared/types';
 import { DEFAULT_SETTINGS } from '../../shared/types';
 import { parseCarState } from '../../shared/volvo';
@@ -77,12 +77,11 @@ async function main(): Promise<void> {
 	const sessions = parseZaptecSessions(readJson('zaptec', 'chargehistory.json'));
 	const months = [...new Set(sessions.flatMap(s => s.hours.map(h => monthKey(h.hourStartUtc))))];
 	const peaksByMonth: Record<string, MonthPeaks> = {};
-	const shares: Record<string, number> = {};
 	for (const month of months) {
 		peaksByMonth[month] = computeMonthPeaks(month, sessions, TEST_TARIFF);
-		Object.assign(shares, peakShares(peaksByMonth[month]!));
 		await db.doc(`peaks/${month}`).set(peaksByMonth[month]!);
 	}
+	const shares = sumPeakShares(Object.values(peaksByMonth));
 	for (const s of sessions) {
 		const { status, cost } = priceSession(s, days, tariffs);
 		await db.doc(`sessions/${s.id}`).set({
@@ -121,12 +120,11 @@ async function main(): Promise<void> {
 	await db.doc('charger/state').set({ pluggedIn: false, charging: false, liveKw: 0, sessionKwh: 0, updatedAt: now });
 
 	// Tonight's plan. The prices only exist for the fixture day, so the plan is computed
-	// then and filed under the evening Home asks for today (the same rule as page.tsx),
+	// then and filed under the evening Home asks for today (`eveningDateOf`, as page.tsx),
 	// which is what lets the app render a plan whatever day the seed runs.
 	const battery = car.battery?.value.percent ?? 0;
 	const plan = planTonight({ nowUtc: PLAN_NOW, batteryPercent: battery, settings, days, tariffs, peaksByMonth });
-	const { date: today, hour } = localParts(now);
-	const eveningDate = hour >= 12 ? today : localParts(addHours(now, -12)).date;
+	const eveningDate = eveningDateOf(now);
 	await db.doc(`plans/${plan.date}`).set(plan);
 	if (eveningDate !== plan.date) await db.doc(`plans/${eveningDate}`).set({ ...plan, date: eveningDate });
 

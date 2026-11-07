@@ -26,3 +26,8 @@ Compare:
 - `553` should be the energy of the current session in kWh and match the Zaptec app.
 
 If an id or unit differs, update the constants at the top of `backend/src/providers/zaptec.ts` and replace the `state.json` fixture with the real (anonymised) response, removing `"_source": "documented"`. Do not paste the token or password anywhere.
+
+## First deploy
+
+- Set the first tariff's start date to the 1st of the month (or earlier) so existing sessions are covered. Sessions before the first tariff's start date are never priced, and the month's peak fee needs a tariff in force for that month.
+- Enable notifications after the first `pollZaptec` run. The first run imports Zaptec's recent history; sessions that ended more than 24 hours earlier are stored without a push, and turning notifications on afterwards avoids any burst from that import.

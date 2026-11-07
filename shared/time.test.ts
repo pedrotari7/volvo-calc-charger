@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { IsoUtc } from './types';
 import {
   addHours,
+  eveningDateOf,
   floorHourUtc,
   localDateOf,
   localParts,
@@ -84,5 +85,29 @@ describe('nextLocalTime', () => {
   });
   it('skips a local time that does not exist', () => {
     expect(nextLocalTime(iso('2026-03-28T22:00:00Z'), '02:30')).toBe('2026-03-30T00:30:00.000Z');
+  });
+});
+
+describe('eveningDateOf', () => {
+  it('is the local date from noon on', () => {
+    expect(eveningDateOf('2026-11-03T11:00:00.000Z')).toBe('2026-11-03'); // 12:00 local
+    expect(eveningDateOf('2026-11-03T22:59:00.000Z')).toBe('2026-11-03'); // 23:59 local
+  });
+  it('is the previous local date before noon', () => {
+    expect(eveningDateOf('2026-11-02T23:02:05.187Z')).toBe('2026-11-02'); // 00:02 local on 3 Nov
+    expect(eveningDateOf('2026-11-03T10:59:00.000Z')).toBe('2026-11-02'); // 11:59 local
+  });
+  it('crosses a month and year boundary', () => {
+    expect(eveningDateOf('2026-11-30T23:30:00.000Z')).toBe('2026-11-30'); // 00:30 local on 1 Dec
+    expect(eveningDateOf('2026-12-31T23:30:00.000Z')).toBe('2026-12-31'); // 00:30 local on 1 Jan
+  });
+  it('is DST safe on the autumn fall-back morning (25-hour day)', () => {
+    // 11:30 local on 25 Oct (CET); 12 hours earlier is 00:30 local on the same date.
+    expect(eveningDateOf('2026-10-25T10:30:00.000Z')).toBe('2026-10-24');
+    expect(eveningDateOf('2026-10-25T00:30:00.000Z')).toBe('2026-10-24'); // repeated 02:30
+  });
+  it('is DST safe on the spring-forward morning (23-hour day)', () => {
+    expect(eveningDateOf('2027-03-28T09:30:00.000Z')).toBe('2027-03-27'); // 11:30 CEST
+    expect(eveningDateOf('2027-03-28T10:00:00.000Z')).toBe('2027-03-28'); // 12:00 CEST
   });
 });

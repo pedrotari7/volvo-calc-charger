@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { computeMonthPeaks, peakIncrease, peakShares } from './peaks';
+import { computeMonthPeaks, peakIncrease, peakShares, sumPeakShares } from './peaks';
 import { TEST_TARIFF } from './testdata';
 import type { Session } from './types';
 import { parseZaptecSessions } from './zaptec';
@@ -94,5 +94,25 @@ describe('peakIncrease', () => {
 		const p = computeMonthPeaks('2026-11', [A, B], TEST_TARIFF);
 		expect(p.top3[0]!.parts).toEqual({ A: 6, B: 4 });
 		expect(peakIncrease(p, [{ hourStartUtc: '2026-11-02T10:00:00.000Z', kWh: 2 }], TEST_TARIFF)).toBeCloseTo((2 / 3) * perKw, 6);
+	});
+});
+
+describe('sumPeakShares', () => {
+	it('adds the shares of a session that touches two months instead of keeping the last', () => {
+		const s: Session = {
+			id: 'x',
+			startUtc: '2026-10-31T22:00:00.000Z',
+			endUtc: '2026-11-01T00:00:00.000Z',
+			kWh: 9,
+			hours: [
+				{ hourStartUtc: '2026-10-31T22:00:00.000Z', kWh: 6 }, // 23:00 local 31 Oct
+				{ hourStartUtc: '2026-10-31T23:00:00.000Z', kWh: 3 }, // 00:00 local 1 Nov
+			],
+		};
+		const oct = computeMonthPeaks('2026-10', [s], TEST_TARIFF);
+		const nov = computeMonthPeaks('2026-11', [s], TEST_TARIFF);
+		expect(oct.estimatedFee).toBeGreaterThan(0);
+		expect(nov.estimatedFee).toBeGreaterThan(0);
+		expect(sumPeakShares([oct, nov]).x).toBeCloseTo(oct.estimatedFee + nov.estimatedFee, 9);
 	});
 });

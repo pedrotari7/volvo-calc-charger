@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { CallableRequest } from 'firebase-functions/v2/https';
+import { logger } from 'firebase-functions/v2';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { db } from '../src/lib/firebase';
 import {
@@ -272,6 +273,28 @@ describe('handleVolvoCallback', () => {
 		const url = await handleVolvoCallback({ code: 'c', state: 'good' }, creds, fetchFn as unknown as typeof fetch);
 		expect(url).toBe(`${home}?volvo=error&reason=exchange`);
 		expect((await db.doc('private/volvo').get()).exists).toBe(false);
+	});
+
+	it('logs a failed exchange with the HTTP status and error class only', async () => {
+		const warn = vi.spyOn(logger, 'warn').mockImplementation(() => undefined);
+		try {
+			await pending();
+			const fetchFn = vi.fn(async () => json(400, { error: 'invalid_grant', detail: 'body-secret' }));
+			await handleVolvoCallback({ code: 'secret-code-123', state: 'good' }, creds, fetchFn as unknown as typeof fetch);
+			expect(warn).toHaveBeenCalledWith('volvoCallback: code exchange failed', { status: 400, errorClass: 'VolvoExchangeError' });
+
+			await pending();
+			const down = vi.fn(async () => Promise.reject(new TypeError('fetch failed')));
+			await handleVolvoCallback({ code: 'secret-code-123', state: 'good' }, creds, down as unknown as typeof fetch);
+			expect(warn).toHaveBeenLastCalledWith('volvoCallback: code exchange failed', { status: null, errorClass: 'TypeError' });
+
+			const logged = JSON.stringify(warn.mock.calls);
+			for (const secret of ['secret-code-123', 'body-secret', 'invalid_grant', 'csecret', 'ver']) {
+				expect(logged).not.toContain(secret);
+			}
+		} finally {
+			warn.mockRestore();
+		}
 	});
 });
 

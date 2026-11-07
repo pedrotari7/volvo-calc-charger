@@ -133,6 +133,41 @@ describe('repriceAndUpdatePeaks', () => {
 		expect((await db.doc('peaks/2026-11').get()).data()!.estimatedFee).toBeCloseTo(fee, 9);
 	});
 
+	it('uses the tariff in force at the month end when the only tariff starts mid-month', async () => {
+		await db.doc('tariffs/t1').set({ ...TEST_TARIFF, effectiveFrom: '2026-11-05' });
+		await seedSession('a', '2026-11-06T10:00:00.000Z', 6);
+		await repriceAndUpdatePeaks(['a']);
+		const peaks = (await db.doc('peaks/2026-11').get()).data();
+		expect(peaks?.estimatedFee).toBeGreaterThan(0);
+		expect((await db.doc('sessions/a').get()).data()!.peakShare).toBeCloseTo(peaks!.estimatedFee, 6);
+	});
+
+	it('sums the peak shares of a session that crosses a month boundary', async () => {
+		await db.doc('tariffs/t1').set(TEST_TARIFF);
+		// 23:00 local on 31 Oct and 00:00 local on 1 Nov (CET).
+		const hours = [
+			{ hourStartUtc: '2026-10-31T22:00:00.000Z', kWh: 6 },
+			{ hourStartUtc: '2026-10-31T23:00:00.000Z', kWh: 3 },
+		];
+		await db.doc('sessions/x').set({
+			startUtc: hours[0].hourStartUtc,
+			endUtc: '2026-11-01T00:00:00.000Z',
+			kWh: 9,
+			hours,
+			status: 'pending',
+			cost: null,
+			peakShare: 0,
+		});
+		await repriceAndUpdatePeaks(['x']);
+		const oct = (await db.doc('peaks/2026-10').get()).data()!.estimatedFee;
+		const nov = (await db.doc('peaks/2026-11').get()).data()!.estimatedFee;
+		expect(oct).toBeGreaterThan(0);
+		expect(nov).toBeGreaterThan(0);
+		expect((await db.doc('sessions/x').get()).data()!.peakShare).toBeCloseTo(oct + nov, 6);
+		await repriceAndUpdatePeaks(['x']);
+		expect((await db.doc('sessions/x').get()).data()!.peakShare).toBeCloseTo(oct + nov, 6);
+	});
+
 	it('skips peaks when no tariff applies', async () => {
 		await seedSession('a', '2026-11-03T10:00:00.000Z', 6);
 		await repriceAndUpdatePeaks(['a']);
