@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import type { PriceDay, Tariff } from '@shared/types';
 import { PriceChart } from './PriceChart';
 
@@ -26,6 +26,8 @@ const day = (date: string, base: number): PriceDay => ({
 });
 const days = { '2026-11-07': day('2026-11-07', 0.5), '2026-11-08': day('2026-11-08', 1) };
 const NOW = '2026-11-07T10:30:00.000Z';
+
+beforeEach(() => window.localStorage.clear());
 
 describe('PriceChart', () => {
 	it('is an accessible image summarising min and max, with plan and current hour marked', () => {
@@ -118,6 +120,29 @@ describe('PriceChart', () => {
 		);
 		// Today 00:00 150, 23:00 179; tomorrow 00:00 212.5 → 213, 23:00 241.25 → 241.
 		expect(marks).toEqual(['low 150', 'high 179', 'low 213', 'high 241']);
+	});
+
+	it('shows only today or only tomorrow across the full width', () => {
+		const { container } = render(<PriceChart days={days} tariffs={[tariff]} now={NOW} window={null} />);
+		fireEvent.click(screen.getByRole('button', { name: 'Tomorrow' }));
+		expect(screen.getByRole('button', { name: 'Tomorrow' })).toHaveAttribute('aria-pressed', 'true');
+		expect(container.querySelectorAll('rect')).toHaveLength(24);
+		expect(screen.getByTestId('price-range')).toHaveTextContent(/^Tomorrow 213–241 öre · cheapest 00:00$/);
+		fireEvent.click(screen.getByRole('button', { name: '15 min' }));
+		expect(container.querySelectorAll('rect')).toHaveLength(96);
+		fireEvent.click(screen.getByRole('button', { name: 'Today' }));
+		expect(container.querySelectorAll('rect')).toHaveLength(96);
+		expect(screen.getByTestId('price-readout')).toHaveTextContent('Now 11:30');
+		fireEvent.click(screen.getByRole('button', { name: 'Both' }));
+		expect(container.querySelectorAll('rect')).toHaveLength(192);
+	});
+
+	it('keeps the switches when tomorrow is chosen before it is published', () => {
+		render(<PriceChart days={{ '2026-11-07': days['2026-11-07']! }} tariffs={[tariff]} now={NOW} window={null} />);
+		fireEvent.click(screen.getByRole('button', { name: 'Tomorrow' }));
+		expect(screen.getByText(/prices from ~13:00/i)).toBeInTheDocument();
+		fireEvent.click(screen.getByRole('button', { name: 'Today' }));
+		expect(screen.getByTestId('price-readout')).toHaveTextContent('Now 11:00');
 	});
 
 	it('says when tomorrow is not published yet', () => {

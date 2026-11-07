@@ -15,12 +15,14 @@ const PAD_BOTTOM = 26;
 const TICKS = [0, 6, 12, 18];
 const QUARTER_MS = 15 * 60_000;
 const MODE_KEY = 'priceChartMode';
+const SPAN_KEY = 'priceChartSpan';
 
 type Mode = 'hour' | 'quarter';
+type Span = 'today' | 'tomorrow' | 'both';
 
 const styles = stylex.create({
 	wrap: { display: 'flex', flexDirection: 'column', gap: 4 },
-	head: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
+	controls: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
 	readoutMain: { fontSize: 15, fontWeight: 600, color: colors.ink, fontVariantNumeric: 'tabular-nums' },
 	readoutSub: { fontSize: 12, color: colors.muted, fontVariantNumeric: 'tabular-nums' },
 	toggle: {
@@ -81,28 +83,77 @@ const hhmm = (iso: IsoUtc): string =>
 const lowest = (s: PricedSlot[]) => s.reduce((a, b) => (b.rate < a.rate ? b : a));
 const highest = (s: PricedSlot[]) => s.reduce((a, b) => (b.rate > a.rate ? b : a));
 
-const readMode = (): Mode => {
+const readStored = <T extends string>(key: string, allowed: readonly T[], fallback: T): T => {
 	try {
-		return window.localStorage.getItem(MODE_KEY) === 'quarter' ? 'quarter' : 'hour';
+		const v = window.localStorage.getItem(key);
+		return allowed.find(a => a === v) ?? fallback;
 	} catch {
-		return 'hour';
+		return fallback;
+	}
+};
+const store = (key: string, value: string) => {
+	try {
+		window.localStorage.setItem(key, value);
+	} catch {
+		// Per-device convenience only.
 	}
 };
 
+const Segmented = <T extends string>({
+	label,
+	options,
+	value,
+	onChange,
+}: {
+	label: string;
+	options: readonly (readonly [T, string])[];
+	value: T;
+	onChange: (v: T) => void;
+}) => (
+	<div role='group' aria-label={label} {...stylex.props(styles.toggle)}>
+		{options.map(([v, text]) => (
+			<button
+				key={v}
+				type='button'
+				aria-pressed={value === v}
+				onClick={() => onChange(v)}
+				{...stylex.props(styles.toggleBtn, value === v && styles.toggleOn)}
+			>
+				{text}
+			</button>
+		))}
+	</div>
+);
+
+const MODES = [
+	['hour', '1 h'],
+	['quarter', '15 min'],
+] as const;
+const SPANS = [
+	['today', 'Today'],
+	['tomorrow', 'Tomorrow'],
+	['both', 'Both'],
+] as const;
+
 export const PriceChart = ({ days, tariffs, now, window: planWindow }: Props) => {
 	const [mode, setMode] = useState<Mode>('hour');
+	const [span, setSpan] = useState<Span>('both');
 	const [picked, setPicked] = useState<IsoUtc | null>(null);
 	// Active touch/pen drag: where it started, and whether that bar was already focused (tap again clears).
 	const drag = useRef<{ id: number; start: IsoUtc; wasPicked: boolean; moved: boolean } | null>(null);
-	useEffect(() => setMode(readMode()), []);
-	const choose = (m: Mode) => {
+	useEffect(() => {
+		setMode(readStored<Mode>(MODE_KEY, ['hour', 'quarter'], 'hour'));
+		setSpan(readStored<Span>(SPAN_KEY, ['today', 'tomorrow', 'both'], 'both'));
+	}, []);
+	const chooseMode = (m: Mode) => {
 		setMode(m);
 		setPicked(null);
-		try {
-			window.localStorage.setItem(MODE_KEY, m);
-		} catch {
-			// Per-device convenience only.
-		}
+		store(MODE_KEY, m);
+	};
+	const chooseSpan = (v: Span) => {
+		setSpan(v);
+		setPicked(null);
+		store(SPAN_KEY, v);
 	};
 
 	const nowHour = floorHourUtc(now);
@@ -110,12 +161,13 @@ export const PriceChart = ({ days, tariffs, now, window: planWindow }: Props) =>
 		mode === 'hour' ? nowHour : new Date(Math.floor(Date.parse(now) / QUARTER_MS) * QUARTER_MS).toISOString();
 	const today = localDateOf(now);
 	const tomorrow = localDateOf(addHours(now, 24));
+	const visible = span === 'both' ? [today, tomorrow] : [span === 'today' ? today : tomorrow];
 
 	const slots: Slot[] = [];
 	for (let i = -24; i < 72; i++) {
 		const hour = addHours(nowHour, i);
 		const d = localDateOf(hour);
-		if (d !== today && d !== tomorrow) continue;
+		if (!visible.includes(d)) continue;
 		if (mode === 'hour') {
 			slots.push({ start: hour, rate: allInRateInclVat(hour, days, tariffs) });
 		} else {
@@ -127,11 +179,15 @@ export const PriceChart = ({ days, tariffs, now, window: planWindow }: Props) =>
 		}
 	}
 	const priced = slots.filter((s): s is PricedSlot => s.rate !== null);
-	if (priced.length === 0) return <p {...stylex.props(styles.empty)}>No prices yet</p>;
+	if (priced.length === 0 && span !== 'tomorrow') return <p {...stylex.props(styles.empty)}>No prices yet</p>;
 
-	const min = lowest(priced);
-	const max = highest(priced);
-	const label = `Price per kWh including VAT, today and tomorrow. Lowest ${ore(min.rate)} öre at ${hhmm(min.start)} on ${localDateOf(min.start)}, highest ${ore(max.rate)} öre at ${hhmm(max.start)} on ${localDateOf(max.start)}.`;
+	const min = priced.length > 0 ? lowest(priced) : null;
+	const max = priced.length > 0 ? highest(priced) : null;
+	const which = span === 'both' ? 'today and tomorrow' : span;
+	const label =
+		min && max
+			? `Price per kWh including VAT, ${which}. Lowest ${ore(min.rate)} öre at ${hhmm(min.start)} on ${localDateOf(min.start)}, highest ${ore(max.rate)} öre at ${hhmm(max.start)} on ${localDateOf(max.start)}.`
+			: `Price per kWh including VAT, ${which}: not published yet.`;
 
 	const shown = priced.find(s => s.start === (picked ?? nowSlot)) ?? null;
 	const shownName = !shown
@@ -151,7 +207,7 @@ export const PriceChart = ({ days, tariffs, now, window: planWindow }: Props) =>
 	const slotW = W / slots.length;
 	const gap = mode === 'hour' ? 1 : 0.4;
 	const plotH = H - PAD_TOP - PAD_BOTTOM;
-	const top = Math.max(max.rate, 0.01);
+	const top = Math.max(max?.rate ?? 0, 0.01);
 	const winStart = planWindow ? Date.parse(planWindow.start) : 0;
 	const winEnd = planWindow ? Date.parse(planWindow.end) : 0;
 	const firstTomorrow = slots.findIndex(s => localDateOf(s.start) === tomorrow);
@@ -200,29 +256,13 @@ export const PriceChart = ({ days, tariffs, now, window: planWindow }: Props) =>
 
 	return (
 		<div {...stylex.props(styles.wrap)}>
-			<div {...stylex.props(styles.head)}>
-				<span data-testid='price-readout' {...stylex.props(styles.readoutMain)}>
-					{shown ? `${shownName} ${hhmm(shown.start)} ${ore(shown.rate)} öre/kWh` : 'Tap a bar for its price'}
-				</span>
-				<div role='group' aria-label='Price resolution' {...stylex.props(styles.toggle)}>
-					{(
-						[
-							['hour', '1 h'],
-							['quarter', '15 min'],
-						] as const
-					).map(([m, text]) => (
-						<button
-							key={m}
-							type='button'
-							aria-pressed={mode === m}
-							onClick={() => choose(m)}
-							{...stylex.props(styles.toggleBtn, mode === m && styles.toggleOn)}
-						>
-							{text}
-						</button>
-					))}
-				</div>
+			<div {...stylex.props(styles.controls)}>
+				<Segmented label='Days shown' options={SPANS} value={span} onChange={chooseSpan} />
+				<Segmented label='Price resolution' options={MODES} value={mode} onChange={chooseMode} />
 			</div>
+			<span data-testid='price-readout' {...stylex.props(styles.readoutMain)}>
+				{shown ? `${shownName} ${hhmm(shown.start)} ${ore(shown.rate)} öre/kWh` : 'Tap a bar for its price'}
+			</span>
 			<span data-testid='price-range' {...stylex.props(styles.readoutSub)}>
 				{[range('Today', todaySlots), range('Tomorrow', tomorrowSlots)].filter(Boolean).join('  ·  ')}
 			</span>
