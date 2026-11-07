@@ -44,6 +44,7 @@ const n2 = (n: number) => formatKr(n).replace(/ kr$/, '');
 const hhmm = (iso: string) => `${String(localParts(iso).hour).padStart(2, '0')}:00`;
 
 interface Row {
+	key: string;
 	hour: string;
 	kWh: number;
 	parts: { spot: number; markup: number; transfer: number; energyTax: number; vat: number; total: number } | null;
@@ -60,7 +61,7 @@ const SessionDetailPage = () => {
 
 	const dates = useMemo(() => (s ? [...new Set(s.hours.map((h) => localDateOf(h.hourStartUtc)))] : []), [s]);
 	const priceConstraints = useMemo(() => [where(documentId(), 'in', dates.length ? dates : ['none'])], [dates]);
-	const prices = useCollection<PriceDay>('prices', priceConstraints);
+	const prices = useCollection<PriceDay>('prices', priceConstraints, s !== null);
 	const tariffs = useCollection<Tariff>('tariffs');
 
 	const days = useMemo(() => Object.fromEntries(prices.data.map((d) => [d.id, d])), [prices.data]);
@@ -69,13 +70,13 @@ const SessionDetailPage = () => {
 		() =>
 			(s?.hours ?? []).map((h) => {
 				const r = hourRateExVat(h.hourStartUtc, days, tariffs.data);
-				if (!r) return { hour: hhmm(h.hourStartUtc), kWh: h.kWh, parts: null };
+				if (!r) return { key: h.hourStartUtc, hour: hhmm(h.hourStartUtc), kWh: h.kWh, parts: null };
 				const spot = r.spot * h.kWh;
 				const markup = r.markup * h.kWh;
 				const transfer = r.transfer * h.kWh;
 				const energyTax = r.energyTax * h.kWh;
 				const vat = (spot + markup + transfer + energyTax) * r.tariff.vatRate;
-				return { hour: hhmm(h.hourStartUtc), kWh: h.kWh, parts: { spot, markup, transfer, energyTax, vat, total: spot + markup + transfer + energyTax + vat } };
+				return { key: h.hourStartUtc, hour: hhmm(h.hourStartUtc), kWh: h.kWh, parts: { spot, markup, transfer, energyTax, vat, total: spot + markup + transfer + energyTax + vat } };
 			}),
 		[s, days, tariffs.data],
 	);
@@ -88,17 +89,17 @@ const SessionDetailPage = () => {
 		</div>
 	);
 
-	if (session.error || prices.error || tariffs.error) {
+	if (session.error) {
 		return (
 			<main {...stylex.props(styles.page)}>
 				{header}
 				<p role='alert' {...stylex.props(styles.error)}>
-					{session.error ? 'Couldn’t load the session' : 'Couldn’t load prices'}
+					Couldn&rsquo;t load the session
 				</p>
 			</main>
 		);
 	}
-	if (session.loading || prices.loading || tariffs.loading) {
+	if (session.loading) {
 		return (
 			<main {...stylex.props(styles.page)}>
 				{header}
@@ -117,7 +118,12 @@ const SessionDetailPage = () => {
 		);
 	}
 
-	const complete = s.status === 'priced' && rows.every((r) => r.parts !== null);
+	const storedTotal = s.status === 'priced' && s.cost ? s.cost.total : null;
+	const tableLoading = prices.loading || tariffs.loading;
+	const tableError = prices.error || tariffs.error;
+	const complete = rows.every((r) => r.parts !== null);
+	const recomputed = sum(rows, 'total');
+	const differs = complete && storedTotal !== null && Math.abs(recomputed - storedTotal) > 0.01;
 
 	return (
 		<main {...stylex.props(styles.page)}>
@@ -125,46 +131,59 @@ const SessionDetailPage = () => {
 			<section aria-label='Session' {...stylex.props(styles.card)}>
 				<h1 {...stylex.props(styles.title)}>{localDateOf(s.startUtc)}</h1>
 				<StatusRow label='Energy' value={formatKwh(s.kWh)} />
-				{complete ? <StatusRow label='Total incl. VAT' value={formatKr(sum(rows, 'total'))} /> : <StatusRow label='Total' value='Price pending' />}
+				{storedTotal !== null ? <StatusRow label='Total incl. VAT' value={formatKr(storedTotal)} /> : <StatusRow label='Total' value='Price pending' />}
 				<StatusRow label='Peak fee share' value={`${s.peakShare.toLocaleString('sv-SE', { maximumFractionDigits: 1 })} kW`} />
 			</section>
-			<div {...stylex.props(styles.scroll)}>
-				<table aria-label='Cost per hour (kr, VAT separate)' {...stylex.props(styles.table)}>
-					<thead>
-						<tr>
-							{COLS.map((c) => (
-								<th key={c} scope='col' {...stylex.props(styles.th)}>
-									{c}
-								</th>
+			{tableError ? (
+				<p role='alert' {...stylex.props(styles.error)}>
+					Couldn&rsquo;t load prices
+				</p>
+			) : tableLoading ? (
+				<p role='status' {...stylex.props(styles.note)}>
+					Loading…
+				</p>
+			) : (
+				<>
+				<div {...stylex.props(styles.scroll)}>
+					<table aria-label='Cost per hour (kr, VAT separate)' {...stylex.props(styles.table)}>
+						<thead>
+							<tr>
+								{COLS.map((c) => (
+									<th key={c} scope='col' {...stylex.props(styles.th)}>
+										{c}
+									</th>
+								))}
+							</tr>
+						</thead>
+						<tbody>
+							{rows.map((r) => (
+								<tr key={r.key}>
+									<td {...stylex.props(styles.td)}>{r.hour}</td>
+									<td {...stylex.props(styles.td)}>{formatKwh(r.kWh)}</td>
+									{(['spot', 'markup', 'transfer', 'energyTax', 'vat', 'total'] as const).map((k) => (
+										<td key={k} {...stylex.props(styles.td)}>
+											{r.parts ? n2(r.parts[k]) : '–'}
+										</td>
+									))}
+								</tr>
 							))}
-						</tr>
-					</thead>
-					<tbody>
-						{rows.map((r, i) => (
-							<tr key={i}>
-								<td {...stylex.props(styles.td)}>{r.hour}</td>
-								<td {...stylex.props(styles.td)}>{r.kWh.toLocaleString('sv-SE', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</td>
+						</tbody>
+						<tfoot>
+							<tr>
+								<td {...stylex.props(styles.td, styles.foot)}>Sum</td>
+								<td {...stylex.props(styles.td, styles.foot)}>{formatKwh(s.kWh)}</td>
 								{(['spot', 'markup', 'transfer', 'energyTax', 'vat', 'total'] as const).map((k) => (
-									<td key={k} {...stylex.props(styles.td)}>
-										{r.parts ? n2(r.parts[k]) : '–'}
+									<td key={k} {...stylex.props(styles.td, styles.foot)}>
+										{complete ? n2(sum(rows, k)) : '–'}
 									</td>
 								))}
 							</tr>
-						))}
-					</tbody>
-					<tfoot>
-						<tr>
-							<td {...stylex.props(styles.td, styles.foot)}>Sum</td>
-							<td {...stylex.props(styles.td, styles.foot)}>{s.kWh.toLocaleString('sv-SE', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</td>
-							{(['spot', 'markup', 'transfer', 'energyTax', 'vat', 'total'] as const).map((k) => (
-								<td key={k} {...stylex.props(styles.td, styles.foot)}>
-									{complete ? n2(sum(rows, k)) : '–'}
-								</td>
-							))}
-						</tr>
-					</tfoot>
-				</table>
-			</div>
+						</tfoot>
+					</table>
+				</div>
+					{differs ? <p {...stylex.props(styles.note)}>Breakdown uses current prices and tariffs</p> : null}
+				</>
+			)}
 		</main>
 	);
 };

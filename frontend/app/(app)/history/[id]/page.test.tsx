@@ -24,7 +24,7 @@ const session: PricedSession = { ...raw, ...priced, peakShare: 2.5, planned: nul
 const useDoc = vi.fn((_p: string): unknown => ({ data: session, loading: false, error: null }));
 const useCollection = vi.fn((_p: string, ..._r: unknown[]): unknown => ({ data: [], loading: false, error: null }));
 vi.mock('../../../../lib/useDoc', () => ({ useDoc: (p: string) => useDoc(p) }));
-vi.mock('../../../../lib/useCollection', () => ({ useCollection: (p: string, c?: unknown) => useCollection(p, c) }));
+vi.mock('../../../../lib/useCollection', () => ({ useCollection: (p: string, c?: unknown, e?: boolean) => useCollection(p, c, e) }));
 vi.mock('next/navigation', () => ({ useParams: () => ({ id: raw.id }) }));
 vi.mock('firebase/firestore', () => ({ documentId: () => 'id', where: (...a: unknown[]) => a }));
 
@@ -67,6 +67,35 @@ describe('SessionDetailPage', () => {
 		render(<SessionDetailPage />);
 		expect(screen.getByText('Price pending')).toBeInTheDocument();
 		expect(screen.queryByText('18,66 kr')).toBeNull();
+	});
+
+	it('keeps the stored headline when prices are missing', () => {
+		useCollection.mockImplementation((p: string) => ({ data: p === 'prices' ? [] : [{ ...TEST_TARIFF }], loading: false, error: null }));
+		render(<SessionDetailPage />);
+		expect(screen.queryByText('Price pending')).toBeNull();
+		expect(screen.getByText('18,66 kr')).toBeInTheDocument();
+		expect(screen.getAllByText('–').length).toBeGreaterThan(0);
+	});
+
+	it('notes when the breakdown differs from the stored total', () => {
+		const { rerender } = render(<SessionDetailPage />);
+		expect(screen.queryByText('Breakdown uses current prices and tariffs')).toBeNull();
+		useDoc.mockReturnValue({ data: { ...session, cost: { ...session.cost!, total: 20 } }, loading: false, error: null });
+		rerender(<SessionDetailPage />);
+		expect(screen.getByText('20,00 kr')).toBeInTheDocument();
+		expect(screen.getByText('Breakdown uses current prices and tariffs')).toBeInTheDocument();
+	});
+
+	it('shows neither pending nor dashes while prices load, and disables the query until the session exists', () => {
+		useCollection.mockImplementation((p: string) => ({ data: [], loading: p === 'prices', error: null }));
+		render(<SessionDetailPage />);
+		expect(screen.queryByText('Price pending')).toBeNull();
+		expect(screen.queryByText('–')).toBeNull();
+		expect(screen.getByText('Loading…')).toBeInTheDocument();
+		expect(useCollection).toHaveBeenCalledWith('prices', expect.anything(), true);
+		useDoc.mockReturnValue({ data: null, loading: true, error: null });
+		render(<SessionDetailPage />);
+		expect(useCollection).toHaveBeenCalledWith('prices', expect.anything(), false);
 	});
 
 	it('shows not found and error notes', () => {
