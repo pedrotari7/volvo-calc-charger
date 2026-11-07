@@ -1,7 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
-
-vi.mock('../app/(app)/ConnectVolvoButton', () => ({ ConnectVolvoButton: () => <button type='button'>Connect Volvo</button> }));
+import { describe, expect, it } from 'vitest';
 
 import { Banner } from './Banner';
 
@@ -22,7 +20,7 @@ describe('Banner', () => {
 	it('offers reconnect when Volvo is not connected', () => {
 		render(<Banner zaptecLastOkAt={ago(1)} volvoConnected={false} now={NOW} />);
 		expect(screen.getByText('Reconnect Volvo')).toBeInTheDocument();
-		expect(screen.getByRole('button', { name: 'Connect Volvo' })).toBeInTheDocument();
+		expect(screen.getByRole('link', { name: 'Reconnect in Settings' })).toHaveAttribute('href', '/settings');
 		expect(screen.queryByText('Charger data delayed')).toBeNull();
 	});
 });

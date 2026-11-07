@@ -1,5 +1,5 @@
 import * as stylex from '@stylexjs/stylex';
-import { ConnectVolvoButton } from '../app/(app)/ConnectVolvoButton';
+import Link from 'next/link';
 import { colors, tint } from '../app/tokens.stylex';
 
 const DELAYED_AFTER_MS = 60 * 60_000;
@@ -38,7 +38,7 @@ export const Banner = ({ zaptecLastOkAt, volvoConnected, now }: Props) => {
 			{!volvoConnected ? (
 				<div role='status' {...stylex.props(styles.banner)}>
 					<span>Reconnect Volvo</span>
-					<ConnectVolvoButton />
+					<Link href='/settings'>Reconnect in Settings</Link>
 				</div>
 			) : null}
 		</div>
