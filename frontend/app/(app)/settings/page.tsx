@@ -7,6 +7,7 @@ import { doc, setDoc } from 'firebase/firestore';
 import { Suspense, useState } from 'react';
 import { AllowlistEditor } from '../../../components/AllowlistEditor';
 import { form } from '../../../components/formStyles';
+import { PushButton } from '../../../components/PushButton';
 import { TariffEditor } from '../../../components/TariffEditor';
 import { VolvoConnection } from '../../../components/VolvoConnection';
 import { getDb } from '../../../lib/firebaseClient';
@@ -164,8 +165,7 @@ const SettingsForm = ({ settings }: { settings: Settings }) => {
 						{label}
 					</label>
 				))}
-				{/* Task 22: the push "Enable notifications" button goes in this container. */}
-				<div data-slot='push-notifications' />
+				<PushButton />
 			</section>
 		</>
 	);

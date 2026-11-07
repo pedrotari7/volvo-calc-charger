@@ -89,16 +89,23 @@ self.addEventListener('fetch', event => {
 	);
 });
 
-// Backend sends data-only FCM messages, so this worker owns displaying them.
+// The backend sends FCM messages with `notification` and `data`; this worker renders them.
 self.addEventListener('push', event => {
 	if (!event.data) return;
 
 	let payload = {};
 	try {
-		const raw = event.data.json();
-		payload = raw.data || raw;
+		const raw = event.data.json() || {};
+		const notification = raw.notification || {};
+		const data = raw.data || {};
+		payload = {
+			title: notification.title || data.title,
+			body: notification.body || data.body,
+			tag: data.tag,
+			url: data.url || raw.fcmOptions?.link || notification.click_action,
+		};
 	} catch {
-		payload = { title: 'Volvo Charge', body: event.data.text() };
+		payload = { body: event.data.text() };
 	}
 
 	event.waitUntil(
@@ -115,20 +122,19 @@ self.addEventListener('push', event => {
 self.addEventListener('notificationclick', event => {
 	event.notification.close();
 
-	const target = event.notification.data?.url || '/';
+	const target = new URL(event.notification.data?.url || '/', self.location.origin).href;
 
 	event.waitUntil(
 		(async () => {
 			const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-			const existing = clientList.find(client => 'focus' in client);
+			const open = clientList.find(client => client.url === target && 'focus' in client);
 
-			if (!existing) {
-				await self.clients.openWindow(target);
+			if (open) {
+				await open.focus();
 				return;
 			}
 
-			const focused = (await existing.focus().catch(() => null)) || existing;
-			await focused.navigate(target).catch(() => undefined);
+			await self.clients.openWindow(target);
 		})()
 	);
 });
