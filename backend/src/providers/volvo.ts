@@ -3,7 +3,9 @@ import type { FetchFn } from './volvoAuth';
 
 export const VOLVO_BASE = 'https://api.volvocars.com';
 export const JSON_ACCEPT = 'application/json';
-export const ENERGY_ACCEPT = 'application/vnd.volvocars.api.energy.vehicledata.v1+json';
+// The vendor media type belongs to Energy v1; v2 answers plain JSON. Home Assistant sends no
+// specific Accept for v2, so match it rather than risk a 406.
+export const ENERGY_ACCEPT = '*/*';
 
 const REQUEST_TIMEOUT_MS = 15_000;
 

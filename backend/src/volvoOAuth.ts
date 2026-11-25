@@ -41,7 +41,12 @@ export async function handleVolvoCallback(
 	// The pending flow is single-use, whatever happens next.
 	await pendingRef.delete();
 	if (Date.parse(pending.expiresAt) < Date.now()) return redirectError('expired');
-	if (typeof query.error === 'string') return redirectError('denied');
+	// Pass Volvo's OAuth error code through (e.g. invalid_scope, access_denied) so the cause is visible.
+	if (typeof query.error === 'string') {
+		const code = query.error.toLowerCase().replace(/[^a-z_]/g, '').slice(0, 40);
+		logger.warn('volvoCallback: Volvo returned an OAuth error', { error: code });
+		return redirectError(code || 'denied');
+	}
 	if (!code) return redirectError('code');
 
 	try {

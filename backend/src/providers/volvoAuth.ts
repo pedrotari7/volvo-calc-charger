@@ -2,7 +2,13 @@ import { createHash, randomBytes } from 'node:crypto';
 import type { DocumentReference, Transaction } from 'firebase-admin/firestore';
 import { db } from '../lib/firebase';
 
-/** Exactly the scopes in spec section 3. `conve:unlock` is deliberately absent. */
+/**
+ * Scopes for the new Volvo ID server (auth.volvocars.com, client IDs not starting with `dc-`).
+ * Keycloak rejects the whole request with `invalid_scope` if any one scope is unknown, so this
+ * list must stay a subset of what that server defines (see `volvocarsapi.scopes`, used by Home
+ * Assistant). The old Energy v1 scopes (`energy:battery_charge_level`, `energy:recharge_status`,
+ * …) and `conve:recharge_status` do not exist there. `conve:unlock` is deliberately absent.
+ */
 export const VOLVO_SCOPES = [
 	'openid',
 	'conve:vehicle_relation',
@@ -15,20 +21,12 @@ export const VOLVO_SCOPES = [
 	'conve:diagnostics_workshop',
 	'conve:trip_statistics',
 	'conve:battery_charge_level',
-	'conve:recharge_status',
 	'conve:command_accessibility',
 	'conve:commands',
 	'conve:lock',
 	'conve:climatization_start_stop',
 	'energy:state:read',
 	'energy:capability:read',
-	'energy:battery_charge_level',
-	'energy:electric_range',
-	'energy:charging_connection_status',
-	'energy:charging_system_status',
-	'energy:estimated_charging_time',
-	'energy:recharge_status',
-	'energy:charging_history:read',
 	'location:read',
 ].join(' ');
 
@@ -106,9 +104,11 @@ async function postToken(body: URLSearchParams, creds: VolvoCreds, fetchFn: Fetc
 	});
 }
 
-async function parseTokenSet(res: Response): Promise<TokenSet> {
+/** `previousRefreshToken` is kept when a refresh response does not rotate it (as volvocarsapi does). */
+async function parseTokenSet(res: Response, previousRefreshToken?: string): Promise<TokenSet> {
 	const json = (await res.json()) as Record<string, unknown>;
-	const { access_token: accessToken, refresh_token: refreshToken, expires_in: expiresIn } = json;
+	const { access_token: accessToken, expires_in: expiresIn } = json;
+	const refreshToken = json.refresh_token ?? previousRefreshToken;
 	if (typeof accessToken !== 'string' || typeof refreshToken !== 'string' || typeof expiresIn !== 'number') {
 		throw new Error('Volvo token response had an unexpected shape');
 	}
@@ -261,7 +261,7 @@ async function refreshWithLease(
 
 	let tokens: TokenSet;
 	try {
-		tokens = await parseTokenSet(res);
+		tokens = await parseTokenSet(res, refreshToken);
 	} catch (err) {
 		await release(leaseId, refreshToken);
 		throw err;

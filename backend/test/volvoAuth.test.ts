@@ -42,8 +42,11 @@ describe('buildAuthorizeUrl', () => {
 		expect(url).toContain(`redirect_uri=${encodeURIComponent(REDIRECT_URI)}`);
 	});
 
-	it('requests the 26 spec scopes and never unlock', () => {
-		expect(VOLVO_SCOPES.split(' ')).toHaveLength(26);
+	it('requests only scopes the new Volvo ID server knows, and never unlock', () => {
+		const scopes = VOLVO_SCOPES.split(' ');
+		expect(scopes).toHaveLength(18);
+		expect(scopes.filter(s => /^energy:(?!state:read$|capability:read$)/.test(s))).toEqual([]);
+		expect(scopes).not.toContain('conve:recharge_status');
 		expect(url).not.toContain('conve:unlock');
 		expect(new URL(url).searchParams.get('scope')).toBe(VOLVO_SCOPES);
 	});
@@ -242,13 +245,19 @@ describe('handleVolvoCallback', () => {
 		expect((await db.doc('private/volvo').get()).exists).toBe(false);
 	});
 
-	it('redirects with reason=denied when Volvo sends an error', async () => {
+	it("redirects with Volvo's OAuth error code as the reason", async () => {
 		await pending();
 		const url = await handleVolvoCallback(
-			{ error: 'access_denied', state: 'good' },
+			{ error: 'invalid_scope', error_description: 'Invalid scopes: x', state: 'good' },
 			creds,
 			vi.fn() as unknown as typeof fetch
 		);
+		expect(url).toBe(`${home}?volvo=error&reason=invalid_scope`);
+	});
+
+	it('sanitises the OAuth error code and falls back to denied', async () => {
+		await pending();
+		const url = await handleVolvoCallback({ error: '<>!', state: 'good' }, creds, vi.fn() as unknown as typeof fetch);
 		expect(url).toBe(`${home}?volvo=error&reason=denied`);
 	});
 
