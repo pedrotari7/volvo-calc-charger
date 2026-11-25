@@ -2,12 +2,15 @@
 
 import * as stylex from '@stylexjs/stylex';
 import { allInRateInclVat } from '@shared/pricing';
-import { addHours, eveningDateOf, floorHourUtc, localParts } from '@shared/time';
-import type { CarState, ChargerState, PriceDay, Plan, Tariff } from '@shared/types';
+import { addHours, eveningDateOf, floorHourUtc, localParts, monthKey } from '@shared/time';
+import type { CarState, ChargerState, MonthPeaks, PriceDay, Plan, Settings, Tariff } from '@shared/types';
+import { DEFAULT_SETTINGS } from '@shared/types';
 import { documentId, where } from 'firebase/firestore';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Banner } from '../../components/Banner';
 import { CarSummary } from '../../components/CarSummary';
+import type { ChargeWindow } from '../../components/ChargeEstimator';
+import { ChargeEstimator } from '../../components/ChargeEstimator';
 import { CommandButtons } from '../../components/CommandButtons';
 import { PriceChart } from '../../components/PriceChart';
 import { Screen } from '../../components/Screen';
@@ -35,10 +38,19 @@ const HomePage = () => {
 	const priceConstraints = useMemo(() => [where(documentId(), 'in', [today, tomorrow])], [today, tomorrow]);
 	const prices = useCollection<PriceDay>('prices', priceConstraints);
 	const tariffs = useCollection<Tariff>('tariffs');
+	const months = [...new Set([monthKey(now), monthKey(addHours(now, 48))])];
+	const monthsKey = months.join(',');
+	const peakConstraints = useMemo(() => [where(documentId(), 'in', monthsKey.split(','))], [monthsKey]);
+	const peaks = useCollection<MonthPeaks>('peaks', peakConstraints);
+	const stored = useDoc<Partial<Settings>>('config/settings');
+	const [estimateWindow, setEstimateWindow] = useState<ChargeWindow | null>(null);
 
 	const days = useMemo(() => Object.fromEntries(prices.data.map(d => [d.id, d])), [prices.data]);
 	const rateNow = allInRateInclVat(floorHourUtc(now), days, tariffs.data);
 	const rec = plan.data?.recommendation ?? null;
+	const settings = useMemo<Settings>(() => ({ ...DEFAULT_SETTINGS, ...stored.data }), [stored.data]);
+	const peaksByMonth = useMemo(() => Object.fromEntries(peaks.data.map(p => [p.id, p])), [peaks.data]);
+	const chartWindow = estimateWindow ?? (rec ? { start: rec.start, end: rec.end } : null);
 
 	return (
 		<Screen title='Home'>
@@ -66,12 +78,18 @@ const HomePage = () => {
 			) : prices.loading || tariffs.loading ? (
 				<Note loading>Loading prices…</Note>
 			) : (
-				<PriceChart
-					days={days}
-					tariffs={tariffs.data}
-					now={now}
-					window={rec ? { start: rec.start, end: rec.end } : null}
-				/>
+				<>
+					<PriceChart days={days} tariffs={tariffs.data} now={now} window={chartWindow} />
+					<ChargeEstimator
+						now={now}
+						batteryPercent={car.data?.battery?.value.percent ?? null}
+						settings={settings}
+						days={days}
+						tariffs={tariffs.data}
+						peaksByMonth={peaksByMonth}
+						onWindow={setEstimateWindow}
+					/>
+				</>
 			)}
 			<CommandButtons locked={car.data?.locked?.value ?? null} />
 		</Screen>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { computeMonthPeaks } from './peaks';
-import { planTonight } from './planner';
+import { estimateCharge, neededKwhFor, planTonight } from './planner';
 import { TEST_TARIFF } from './testdata';
 import { localParts } from './time';
 import type { MonthPeaks, PlanCandidate, PriceDay, Session, Settings } from './types';
@@ -274,5 +274,74 @@ describe('planTonight', () => {
 			expect(c.start.endsWith(':00:00.000Z')).toBe(true);
 			expect(Date.parse(c.end)).toBeLessThanOrEqual(Date.parse('2026-10-25T06:00:00.000Z'));
 		}
+	});
+});
+
+describe('neededKwhFor', () => {
+	it('is wall energy for the battery gap, rounded to 0.1, never negative', () => {
+		expect(neededKwhFor(62, 80, DEFAULT_SETTINGS)).toBe(15);
+		expect(neededKwhFor(90, 80, DEFAULT_SETTINGS)).toBe(0);
+	});
+});
+
+describe('estimateCharge', () => {
+	// Cheap 02:00–04:59 local on the 4th, dear 17:00–19:59 on the 3rd, 1 kr otherwise.
+	const shaped = (): Record<string, PriceDay> => ({
+		'2026-11-03': priceDay('2026-11-03', h => (h >= 17 && h < 20 ? 3 : 1)),
+		'2026-11-04': priceDay('2026-11-04', h => (h >= 2 && h < 5 ? 0.2 : 1)),
+	});
+	const est = (o: Partial<Parameters<typeof estimateCharge>[0]> = {}) =>
+		estimateCharge({
+			startUtc: '2026-11-03T16:00:00.000Z', // 17:00 local
+			endUtc: '2026-11-04T06:00:00.000Z', // 07:00 local
+			neededKwh: 22,
+			kws: [11],
+			days: shaped(),
+			tariffs: [TEST_TARIFF],
+			peaksByMonth: peaksOf([11, 11, 11]),
+			...o,
+		});
+
+	it('picks the cheapest window and compares it with plugging in right away', () => {
+		const e = est();
+		expect(e.fits).toBe(true);
+		expect(e.missingPrices).toBe(false);
+		expect(e.best!.start).toBe('2026-11-04T01:00:00.000Z'); // 02:00 local
+		expect(hoursOf(e.best!)).toBe(2);
+		expect(e.asap!.start).toBe('2026-11-03T16:00:00.000Z');
+		expect(e.worst!.start).toBe('2026-11-03T16:00:00.000Z');
+		expect(e.asap!.cost).toBeGreaterThan(e.best!.cost);
+		expect(e.byKw).toEqual([e.best]);
+	});
+
+	it('rounds a mid-hour start up to the next whole hour', () => {
+		const e = est({ startUtc: '2026-11-03T16:20:00.000Z' });
+		expect(e.asap!.start).toBe('2026-11-03T17:00:00.000Z');
+	});
+
+	it('reports one candidate per power and keeps the cheapest overall', () => {
+		const e = est({ kws: [11, 3.7, 11] });
+		expect(e.byKw.map(c => c.kw)).toEqual([11, 3.7]);
+		expect(e.best!.cost).toBe(Math.min(...e.byKw.map(c => c.cost)));
+		expect(e.asap!.kw).toBe(11);
+	});
+
+	it('does not fit when the window is too short', () => {
+		const e = est({ endUtc: '2026-11-03T17:00:00.000Z' });
+		expect(e.fits).toBe(false);
+		expect(e.best).toBeNull();
+		expect(e.asap).toBeNull();
+		expect(e.worst).toBeNull();
+	});
+
+	it('flags windows that run past published prices', () => {
+		const e = est({ endUtc: '2026-11-05T06:00:00.000Z' });
+		expect(e.missingPrices).toBe(true);
+		expect(e.best!.start).toBe('2026-11-04T01:00:00.000Z');
+	});
+
+	it('needs nothing when already at target', () => {
+		const e = est({ neededKwh: 0 });
+		expect(e).toEqual({ best: null, byKw: [], asap: null, worst: null, fits: true, missingPrices: false });
 	});
 });
