@@ -4,6 +4,9 @@ import * as stylex from '@stylexjs/stylex';
 import { formatAgo } from '@shared/format';
 import type { CarState } from '@shared/types';
 import type { ReactNode } from 'react';
+import { CellText, Group, list } from '../../../components/List';
+import { Screen } from '../../../components/Screen';
+import { Note } from '../../../components/Spinner';
 import { StatusRow } from '../../../components/StatusRow';
 import { tileXY } from '../../../lib/osmTile';
 import { useDoc } from '../../../lib/useDoc';
@@ -11,24 +14,9 @@ import { useNow } from '../../../lib/useNow';
 import { colors } from '../../tokens.stylex';
 
 const styles = stylex.create({
-	page: { display: 'flex', flexDirection: 'column', gap: 12, padding: 16, maxWidth: 560, marginInline: 'auto' },
-	card: {
-		padding: 16,
-		borderRadius: 16,
-		backgroundColor: colors.surface,
-		borderWidth: 1,
-		borderStyle: 'solid',
-		borderColor: colors.line,
-		display: 'flex',
-		flexDirection: 'column',
-		gap: 8,
-	},
-	head: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' },
-	title: { fontSize: 16, fontWeight: 600, color: colors.ink },
-	muted: { fontSize: 13, color: colors.muted },
-	error: { fontSize: 13, color: colors.bad },
-	link: { fontSize: 14, color: colors.info },
-	tile: { width: 256, height: 256, maxWidth: '100%', borderRadius: 12, alignSelf: 'center' },
+	tile: { width: '100%', height: 200, objectFit: 'cover', display: 'block' },
+	mapLink: { color: colors.info },
+	credit: { fontSize: 11, color: colors.faint },
 });
 
 const sentence = (key: string) => {
@@ -56,16 +44,12 @@ const coord = (n: number) => String(Number(n.toFixed(5)));
 const num = (n: number) => n.toLocaleString('sv-SE', { maximumFractionDigits: 1 });
 
 const Section = ({ title, at, now, children }: { title: string; at?: string; now: string; children: ReactNode }) => (
-	<section aria-label={title} {...stylex.props(styles.card)}>
-		<div {...stylex.props(styles.head)}>
-			<h2 {...stylex.props(styles.title)}>{title}</h2>
-			{at ? <span {...stylex.props(styles.muted)}>{formatAgo(at, now)}</span> : null}
-		</div>
+	<Group header={title} aside={at ? formatAgo(at, now) : undefined}>
 		{children}
-	</section>
+	</Group>
 );
 
-const NotAvailable = () => <p {...stylex.props(styles.muted)}>Not available</p>;
+const NotAvailable = () => <CellText>Not available</CellText>;
 
 const CarPage = () => {
 	const now = useNow();
@@ -73,20 +57,16 @@ const CarPage = () => {
 
 	if (error) {
 		return (
-			<main {...stylex.props(styles.page)}>
-				<p role='alert' {...stylex.props(styles.error)}>
-					Couldn&apos;t load the car
-				</p>
-			</main>
+			<Screen title='Car'>
+				<Note error>Couldn&apos;t load the car</Note>
+			</Screen>
 		);
 	}
 	if (loading) {
 		return (
-			<main {...stylex.props(styles.page)}>
-				<p role='status' {...stylex.props(styles.muted)}>
-					Loading…
-				</p>
-			</main>
+			<Screen title='Car'>
+				<Note loading>Loading…</Note>
+			</Screen>
 		);
 	}
 
@@ -94,7 +74,7 @@ const CarPage = () => {
 	const tile = loc ? tileXY(loc.value.lat, loc.value.lng, 16) : null;
 
 	return (
-		<main {...stylex.props(styles.page)}>
+		<Screen title='Car'>
 			<Section title='Openings' at={car?.openings?.at} now={now}>
 				{car?.openings && Object.keys(car.openings.value).length ? (
 					Object.entries(car.openings.value).map(([k, v]) => (
@@ -121,7 +101,7 @@ const CarPage = () => {
 					car.warnings.value.length ? (
 						car.warnings.value.map(w => <StatusRow key={w} label={sentence(w)} value='Active' tone='bad' />)
 					) : (
-						<p {...stylex.props(styles.muted)}>No warnings</p>
+						<CellText>No warnings</CellText>
 					)
 				) : (
 					<NotAvailable />
@@ -171,7 +151,7 @@ const CarPage = () => {
 						/>
 						<a
 							href={`https://maps.apple.com/?ll=${coord(loc.value.lat)},${coord(loc.value.lng)}`}
-							{...stylex.props(styles.link)}
+							{...stylex.props(list.cell, list.pressable, styles.mapLink)}
 						>
 							Open in Maps
 						</a>
@@ -179,7 +159,7 @@ const CarPage = () => {
 							href='https://www.openstreetmap.org/copyright'
 							target='_blank'
 							rel='noopener noreferrer'
-							{...stylex.props(styles.muted)}
+							{...stylex.props(list.cell, styles.credit)}
 						>
 							© OpenStreetMap contributors
 						</a>
@@ -188,7 +168,7 @@ const CarPage = () => {
 					<NotAvailable />
 				)}
 			</Section>
-		</main>
+		</Screen>
 	);
 };
 

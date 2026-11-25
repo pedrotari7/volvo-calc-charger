@@ -10,13 +10,30 @@ import { MonthSummary } from '../../../components/MonthSummary';
 import { SessionRow } from '../../../components/SessionRow';
 import { useCollection } from '../../../lib/useCollection';
 import { useDoc } from '../../../lib/useDoc';
-import { colors } from '../../tokens.stylex';
+import { Icon } from '../../../components/Icon';
+import { Screen } from '../../../components/Screen';
+import { Note } from '../../../components/Spinner';
+import { colors, layout } from '../../tokens.stylex';
 
 const styles = stylex.create({
-	page: { display: 'flex', flexDirection: 'column', gap: 12, padding: 16, maxWidth: 560, marginInline: 'auto' },
-	group: { display: 'flex', flexDirection: 'column', gap: 8 },
-	note: { fontSize: 13, color: colors.muted },
-	error: { fontSize: 13, color: colors.bad },
+	month: { display: 'flex', flexDirection: 'column', gap: 12 },
+	sessions: {
+		backgroundColor: colors.surface,
+		borderRadius: layout.radius,
+		overflow: 'hidden',
+		display: 'flex',
+		flexDirection: 'column',
+	},
+	empty: {
+		display: 'flex',
+		flexDirection: 'column',
+		alignItems: 'center',
+		gap: 10,
+		paddingBlock: 64,
+		fontSize: 17,
+		color: colors.muted,
+	},
+	emptyIcon: { color: colors.faint },
 });
 
 interface OdometerDoc {
@@ -43,47 +60,46 @@ const HistoryPage = () => {
 
 	if (sessions.error) {
 		return (
-			<main {...stylex.props(styles.page)}>
-				<p role='alert' {...stylex.props(styles.error)}>
-					Couldn&rsquo;t load history
-				</p>
-			</main>
+			<Screen title='History'>
+				<Note error>Couldn&rsquo;t load history</Note>
+			</Screen>
 		);
 	}
 	if (sessions.loading) {
 		return (
-			<main {...stylex.props(styles.page)}>
-				<p role='status' {...stylex.props(styles.note)}>
-					Loading…
-				</p>
-			</main>
+			<Screen title='History'>
+				<Note loading>Loading…</Note>
+			</Screen>
 		);
 	}
 
 	return (
-		<main {...stylex.props(styles.page)}>
-			{odometer.error || peaks.error ? (
-				<p role='alert' {...stylex.props(styles.error)}>
-					Some figures are unavailable
-				</p>
+		<Screen title='History'>
+			{odometer.error || peaks.error ? <Note error>Some figures are unavailable</Note> : null}
+			{groups.length === 0 ? (
+				<div {...stylex.props(styles.empty)}>
+					<Icon name='clock' size={48} strokeWidth={1.4} {...stylex.props(styles.emptyIcon)} />
+					<p>No sessions yet</p>
+				</div>
 			) : null}
-			{groups.length === 0 ? <p {...stylex.props(styles.note)}>No sessions yet</p> : null}
 			{groups.map(([month, list]) => {
 				const monthPeaks = peaks.data.find(p => p.id === month) ?? null;
 				return (
-					<div key={month} {...stylex.props(styles.group)}>
+					<div key={month} {...stylex.props(styles.month)}>
 						<MonthSummary
 							month={month}
 							totals={monthTotals(list, month, readings, monthPeaks, settings)}
 							final={monthPeaks?.final === true}
 						/>
-						{list.map(s => (
-							<SessionRow key={s.id} session={s} />
-						))}
+						<div {...stylex.props(styles.sessions)}>
+							{list.map(s => (
+								<SessionRow key={s.id} session={s} />
+							))}
+						</div>
 					</div>
 				);
 			})}
-		</main>
+		</Screen>
 	);
 };
 

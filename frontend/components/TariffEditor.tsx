@@ -9,6 +9,7 @@ import { useMemo, useState } from 'react';
 import { getDb } from '../lib/firebaseClient';
 import { useCollection } from '../lib/useCollection';
 import { form } from './formStyles';
+import { Switch } from './Switch';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -259,135 +260,150 @@ export const TariffEditor = () => {
 					hour. Add a tariff that starts earlier.
 				</p>
 			) : null}
-			<ul {...stylex.props(form.list)}>
-				{sorted.map(t => (
-					<li key={t.id} {...stylex.props(form.item)}>
-						<span>From {t.effectiveFrom}</span>
-						<button
-							type='button'
-							aria-label={`Edit tariff from ${t.effectiveFrom}`}
-							onClick={() => open(t, false)}
-							{...stylex.props(form.secondary)}
-						>
-							Edit
-						</button>
-					</li>
-				))}
-			</ul>
+			{sorted.length > 0 ? (
+				<ul {...stylex.props(form.body, form.list)}>
+					{sorted.map(t => (
+						<li key={t.id} {...stylex.props(form.item)}>
+							<span>From {t.effectiveFrom}</span>
+							<button
+								type='button'
+								aria-label={`Edit tariff from ${t.effectiveFrom}`}
+								onClick={() => open(t, false)}
+								{...stylex.props(form.cellAction)}
+							>
+								Edit
+							</button>
+						</li>
+					))}
+				</ul>
+			) : null}
 			{!draft ? (
-				<button type='button' onClick={() => open(undefined, true)} {...stylex.props(form.button)}>
-					Add tariff
-				</button>
+				<div {...stylex.props(form.actions)}>
+					<button type='button' onClick={() => open(undefined, true)} {...stylex.props(form.secondary)}>
+						Add tariff
+					</button>
+				</div>
 			) : (
-				<div {...stylex.props(form.section)}>
-					<label {...stylex.props(form.field)}>
-						Start date
-						<input
-							aria-label='Start date'
-							value={draft.effectiveFrom}
-							readOnly={!draft.isNew}
-							inputMode='numeric'
-							onChange={e => patch({ effectiveFrom: e.target.value })}
-							{...stylex.props(form.input)}
-						/>
-					</label>
+				<>
+					<h3 {...stylex.props(form.heading, form.subHeading)}>
+						{draft.isNew ? 'New tariff' : `Tariff from ${draft.originalId ?? draft.effectiveFrom}`}
+					</h3>
+					<div {...stylex.props(form.body)}>
+						<label {...stylex.props(form.field)}>
+							<span {...stylex.props(form.fieldLabel)}>Start date</span>
+							<input
+								aria-label='Start date'
+								value={draft.effectiveFrom}
+								readOnly={!draft.isNew}
+								inputMode='numeric'
+								onChange={e => patch({ effectiveFrom: e.target.value })}
+								{...stylex.props(form.input)}
+							/>
+						</label>
+						{MONEY.map(({ key, label }) => (
+							<div key={key} {...stylex.props(form.field)}>
+								<label htmlFor={`tariff-${key}`} {...stylex.props(form.fieldLabel)}>
+									{label}
+								</label>
+								<div {...stylex.props(form.inline)}>
+									<input
+										id={`tariff-${key}`}
+										inputMode='decimal'
+										value={draft.money[key]}
+										onChange={e =>
+											patch({
+												money: { ...draft.money, [key]: e.target.value },
+												touched: { ...draft.touched, [key]: true },
+											})
+										}
+										{...stylex.props(form.input, form.narrow)}
+									/>
+									<select
+										aria-label={`${label} VAT`}
+										value={draft.incl[key] ? 'incl' : 'excl'}
+										onChange={e => toggleVat(key, e.target.value === 'incl')}
+										{...stylex.props(form.select)}
+									>
+										<option value='incl'>incl. VAT</option>
+										<option value='excl'>excl. VAT</option>
+									</select>
+								</div>
+							</div>
+						))}
+					</div>
 					{sorted.length === 0 ? (
 						<p {...stylex.props(form.note)}>
 							Pre-filled with Nacka Energi&rsquo;s 2026 prices (house, 16 A). Energy tax, Fortum markup
 							and the monthly fee are empty: copy from your invoice.
 						</p>
 					) : null}
-					{MONEY.map(({ key, label }) => (
-						<div key={key} {...stylex.props(form.field)}>
-							<label htmlFor={`tariff-${key}`}>{label}</label>
-							<div {...stylex.props(form.row)}>
+					<fieldset {...stylex.props(form.section, form.fieldset)}>
+						<legend {...stylex.props(form.heading, form.subHeading)}>High-load months</legend>
+						<div {...stylex.props(form.body)}>
+							<div {...stylex.props(form.months)}>
+								{MONTHS.map((name, i) => {
+									const on = draft.months.includes(i + 1);
+
+									return (
+										<label key={name} {...stylex.props(form.chip, on && form.chipOn)}>
+											<input
+												type='checkbox'
+												checked={on}
+												onChange={e =>
+													patch({
+														months: e.target.checked
+															? [...draft.months, i + 1]
+															: draft.months.filter(m => m !== i + 1),
+													})
+												}
+												{...stylex.props(form.hiddenInput)}
+											/>
+											{name}
+										</label>
+									);
+								})}
+							</div>
+							<label {...stylex.props(form.check)}>
+								<span>Weekdays only</span>
+								<Switch
+									checked={draft.weekdaysOnly}
+									onChange={e => patch({ weekdaysOnly: e.target.checked })}
+								/>
+							</label>
+							<label {...stylex.props(form.field)}>
+								<span {...stylex.props(form.fieldLabel)}>From hour</span>
 								<input
-									id={`tariff-${key}`}
-									inputMode='decimal'
-									value={draft.money[key]}
-									onChange={e =>
-										patch({
-											money: { ...draft.money, [key]: e.target.value },
-											touched: { ...draft.touched, [key]: true },
-										})
-									}
+									inputMode='numeric'
+									value={draft.fromHour}
+									onChange={e => patch({ fromHour: e.target.value })}
 									{...stylex.props(form.input)}
 								/>
-								<select
-									aria-label={`${label} VAT`}
-									value={draft.incl[key] ? 'incl' : 'excl'}
-									onChange={e => toggleVat(key, e.target.value === 'incl')}
+							</label>
+							<label {...stylex.props(form.field)}>
+								<span {...stylex.props(form.fieldLabel)}>To hour</span>
+								<input
+									inputMode='numeric'
+									value={draft.toHour}
+									onChange={e => patch({ toHour: e.target.value })}
 									{...stylex.props(form.input)}
-								>
-									<option value='incl'>incl. VAT</option>
-									<option value='excl'>excl. VAT</option>
-								</select>
-							</div>
-						</div>
-					))}
-					<fieldset {...stylex.props(form.field)}>
-						<legend>High-load months</legend>
-						<div {...stylex.props(form.months)}>
-							{MONTHS.map((name, i) => (
-								<label key={name} {...stylex.props(form.check)}>
-									<input
-										type='checkbox'
-										checked={draft.months.includes(i + 1)}
-										onChange={e =>
-											patch({
-												months: e.target.checked
-													? [...draft.months, i + 1]
-													: draft.months.filter(m => m !== i + 1),
-											})
-										}
-									/>
-									{name}
-								</label>
-							))}
+								/>
+							</label>
 						</div>
 					</fieldset>
-					<label {...stylex.props(form.check)}>
-						<input
-							type='checkbox'
-							checked={draft.weekdaysOnly}
-							onChange={e => patch({ weekdaysOnly: e.target.checked })}
-						/>
-						Weekdays only
-					</label>
-					<div {...stylex.props(form.row)}>
-						<label {...stylex.props(form.field)}>
-							From hour
-							<input
-								inputMode='numeric'
-								value={draft.fromHour}
-								onChange={e => patch({ fromHour: e.target.value })}
-								{...stylex.props(form.input)}
-							/>
-						</label>
-						<label {...stylex.props(form.field)}>
-							To hour
-							<input
-								inputMode='numeric'
-								value={draft.toHour}
-								onChange={e => patch({ toHour: e.target.value })}
-								{...stylex.props(form.input)}
-							/>
-						</label>
-					</div>
 					{errors.map(e => (
 						<p key={e} role='alert' {...stylex.props(form.error)}>
 							{e}
 						</p>
 					))}
 					<div {...stylex.props(form.row)}>
-						<button type='button' onClick={() => void save()} {...stylex.props(form.button)}>
-							Save tariff
-						</button>
 						<button type='button' onClick={() => setDraft(null)} {...stylex.props(form.secondary)}>
 							Cancel
 						</button>
+						<button type='button' onClick={() => void save()} {...stylex.props(form.button)}>
+							Save tariff
+						</button>
 					</div>
-				</div>
+				</>
 			)}
 		</section>
 	);

@@ -6,7 +6,7 @@ import { addHours, floorHourUtc, localDateOf, localParts } from '@shared/time';
 import type { IsoUtc, PriceDay, Tariff } from '@shared/types';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import { useEffect, useRef, useState } from 'react';
-import { colors } from '../app/tokens.stylex';
+import { colors, fonts, tint } from '../app/tokens.stylex';
 
 const W = 340;
 const H = 130;
@@ -21,29 +21,57 @@ type Mode = 'hour' | 'quarter';
 type Span = 'today' | 'tomorrow' | 'both';
 
 const styles = stylex.create({
-	wrap: { display: 'flex', flexDirection: 'column', gap: 4 },
-	controls: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
-	readoutMain: { fontSize: 15, fontWeight: 600, color: colors.ink, fontVariantNumeric: 'tabular-nums' },
-	readoutSub: { fontSize: 12, color: colors.muted, fontVariantNumeric: 'tabular-nums' },
+	wrap: {
+		display: 'flex',
+		flexDirection: 'column',
+		gap: 4,
+		padding: 16,
+		borderRadius: 20,
+		backgroundColor: colors.surface,
+	},
+	controls: {
+		display: 'flex',
+		justifyContent: 'space-between',
+		alignItems: 'center',
+		gap: 8,
+		flexWrap: 'wrap',
+		marginBottom: 10,
+	},
+	readoutMain: {
+		fontSize: 22,
+		fontWeight: 700,
+		color: colors.ink,
+		fontVariantNumeric: 'tabular-nums',
+		fontFamily: fonts.rounded,
+	},
+	readoutSub: { fontSize: 13, color: colors.muted, fontVariantNumeric: 'tabular-nums', marginBottom: 6 },
+	// iOS segmented control: a recessed track with a raised thumb.
 	toggle: {
 		display: 'flex',
-		borderWidth: 1,
-		borderStyle: 'solid',
-		borderColor: colors.line,
-		borderRadius: 8,
-		overflow: 'hidden',
+		padding: 2,
+		gap: 2,
+		borderRadius: 9,
+		backgroundColor: tint.fill,
 		flexShrink: 0,
 	},
 	toggleBtn: {
 		backgroundColor: 'transparent',
-		color: colors.muted,
+		color: colors.ink,
 		borderWidth: 0,
-		paddingBlock: 4,
-		paddingInline: 10,
-		fontSize: 12,
+		borderRadius: 7,
+		minHeight: 28,
+		paddingInline: 12,
+		fontSize: 13,
+		fontWeight: 500,
 		cursor: 'pointer',
+		transitionProperty: 'background-color, box-shadow',
+		transitionDuration: '200ms',
 	},
-	toggleOn: { backgroundColor: colors.raised, color: colors.ink },
+	toggleOn: {
+		backgroundColor: '#636366',
+		fontWeight: 600,
+		boxShadow: '0 3px 8px rgb(0 0 0 / 0.12), 0 3px 1px rgb(0 0 0 / 0.04)',
+	},
 	svg: {
 		width: '100%',
 		height: 'auto',
@@ -52,7 +80,7 @@ const styles = stylex.create({
 		userSelect: 'none',
 		WebkitUserSelect: 'none',
 	},
-	bar: { fill: colors.faint, cursor: 'pointer' },
+	bar: { fill: 'rgb(235 235 245 / 0.28)', cursor: 'pointer' },
 	plan: { fill: colors.brand, cursor: 'pointer' },
 	current: { stroke: colors.ink, strokeWidth: 1.5 },
 	selected: { fill: colors.ink },
@@ -60,7 +88,14 @@ const styles = stylex.create({
 	highMark: { fill: colors.bad, fontSize: 9, fontWeight: 600 },
 	label: { fill: colors.muted, fontSize: 9 },
 	tick: { fill: colors.faint, fontSize: 8 },
-	empty: { fontSize: 13, color: colors.muted },
+	empty: {
+		fontSize: 15,
+		color: colors.muted,
+		padding: 20,
+		borderRadius: 20,
+		backgroundColor: colors.surface,
+		textAlign: 'center',
+	},
 });
 
 interface Props {
@@ -255,7 +290,7 @@ export const PriceChart = ({ days, tariffs, now, window: planWindow }: Props) =>
 	}
 
 	return (
-		<div {...stylex.props(styles.wrap)}>
+		<section aria-label='Prices' {...stylex.props(styles.wrap)}>
 			<div {...stylex.props(styles.controls)}>
 				<Segmented label='Days shown' options={SPANS} value={span} onChange={chooseSpan} />
 				<Segmented label='Price resolution' options={MODES} value={mode} onChange={chooseMode} />
@@ -357,6 +392,6 @@ export const PriceChart = ({ days, tariffs, now, window: planWindow }: Props) =>
 					</text>
 				) : null}
 			</svg>
-		</div>
+		</section>
 	);
 };

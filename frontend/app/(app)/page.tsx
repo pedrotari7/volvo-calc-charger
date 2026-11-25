@@ -10,23 +10,16 @@ import { Banner } from '../../components/Banner';
 import { CarSummary } from '../../components/CarSummary';
 import { CommandButtons } from '../../components/CommandButtons';
 import { PriceChart } from '../../components/PriceChart';
+import { Screen } from '../../components/Screen';
+import { Note } from '../../components/Spinner';
 import { TonightCard } from '../../components/TonightCard';
 import { useCollection } from '../../lib/useCollection';
-import { colors } from '../tokens.stylex';
 import { useDoc } from '../../lib/useDoc';
 import { useNow } from '../../lib/useNow';
 
 const styles = stylex.create({
-	note: { fontSize: 13, color: colors.muted },
-	error: { fontSize: 13, color: colors.bad },
-	page: { display: 'flex', flexDirection: 'column', gap: 12, padding: 16, maxWidth: 560, marginInline: 'auto' },
+	stack: { display: 'flex', flexDirection: 'column', gap: 12 },
 });
-
-const Note = ({ error, children }: { error?: boolean; children: string }) => (
-	<p role={error ? 'alert' : 'status'} {...stylex.props(error ? styles.error : styles.note)}>
-		{children}
-	</p>
-);
 
 const HomePage = () => {
 	const now = useNow();
@@ -48,7 +41,7 @@ const HomePage = () => {
 	const rec = plan.data?.recommendation ?? null;
 
 	return (
-		<main {...stylex.props(styles.page)}>
+		<Screen title='Home'>
 			<Banner
 				zaptecLastOkAt={zaptec.data?.lastOkAt ?? null}
 				volvoConnected={volvo.loading || volvo.data?.connected === true}
@@ -56,20 +49,22 @@ const HomePage = () => {
 			/>
 			{car.error ? <Note error>Couldn&apos;t load the car</Note> : null}
 			{charger.error ? <Note error>Couldn&apos;t load the charger</Note> : null}
-			{car.loading ? (
-				<Note>Loading…</Note>
-			) : (
-				<CarSummary car={car.data} charger={charger.data} now={now} rateNow={rateNow} />
-			)}
-			{plan.error ? (
-				<Note error>Couldn&apos;t load the plan</Note>
-			) : plan.loading ? null : (
-				<TonightCard plan={plan.data} />
-			)}
+			<div {...stylex.props(styles.stack)}>
+				{car.loading ? (
+					<Note loading>Loading…</Note>
+				) : (
+					<CarSummary car={car.data} charger={charger.data} now={now} rateNow={rateNow} />
+				)}
+				{plan.error ? (
+					<Note error>Couldn&apos;t load the plan</Note>
+				) : plan.loading ? null : (
+					<TonightCard plan={plan.data} />
+				)}
+			</div>
 			{prices.error || tariffs.error ? (
 				<Note error>Couldn&apos;t load prices</Note>
 			) : prices.loading || tariffs.loading ? (
-				<Note>Loading prices…</Note>
+				<Note loading>Loading prices…</Note>
 			) : (
 				<PriceChart
 					days={days}
@@ -79,7 +74,7 @@ const HomePage = () => {
 				/>
 			)}
 			<CommandButtons locked={car.data?.locked?.value ?? null} />
-		</main>
+		</Screen>
 	);
 };
 

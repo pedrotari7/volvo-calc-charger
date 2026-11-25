@@ -8,16 +8,13 @@ import { Suspense, useState } from 'react';
 import { AllowlistEditor } from '../../../components/AllowlistEditor';
 import { form } from '../../../components/formStyles';
 import { PushButton } from '../../../components/PushButton';
+import { Screen } from '../../../components/Screen';
+import { Note } from '../../../components/Spinner';
+import { Switch } from '../../../components/Switch';
 import { TariffEditor } from '../../../components/TariffEditor';
 import { VolvoConnection } from '../../../components/VolvoConnection';
 import { getDb } from '../../../lib/firebaseClient';
 import { useDoc } from '../../../lib/useDoc';
-import { colors } from '../../tokens.stylex';
-
-const styles = stylex.create({
-	page: { display: 'flex', flexDirection: 'column', gap: 12, padding: 16, maxWidth: 560, marginInline: 'auto' },
-	note: { fontSize: 13, color: colors.muted },
-});
 
 const READY_BY = /^([01]\d|2[0-3]):[0-5]\d$/;
 
@@ -113,32 +110,35 @@ const SettingsForm = ({ settings }: { settings: Settings }) => {
 		<>
 			<section aria-label='Charging settings' {...stylex.props(form.section)}>
 				<h2 {...stylex.props(form.heading)}>Charging</h2>
-				{FIELDS.map(({ key, label }) => (
-					<label key={key} {...stylex.props(form.field)}>
-						{label}
+				<div {...stylex.props(form.body)}>
+					{FIELDS.map(({ key, label }) => (
+						<label key={key} {...stylex.props(form.field)}>
+							<span {...stylex.props(form.fieldLabel)}>{label}</span>
+							<input
+								inputMode='decimal'
+								value={values[key]}
+								onChange={e => {
+									setSaved(false);
+									setValues(v => ({ ...v, [key]: e.target.value }));
+								}}
+								{...stylex.props(form.input)}
+							/>
+						</label>
+					))}
+					<label {...stylex.props(form.field)}>
+						<span {...stylex.props(form.fieldLabel)}>Ready by</span>
 						<input
-							inputMode='decimal'
-							value={values[key]}
+							value={readyBy}
+							placeholder='07:00'
+							inputMode='numeric'
 							onChange={e => {
 								setSaved(false);
-								setValues(v => ({ ...v, [key]: e.target.value }));
+								setReadyBy(e.target.value);
 							}}
 							{...stylex.props(form.input)}
 						/>
 					</label>
-				))}
-				<label {...stylex.props(form.field)}>
-					Ready by
-					<input
-						value={readyBy}
-						placeholder='07:00'
-						onChange={e => {
-							setSaved(false);
-							setReadyBy(e.target.value);
-						}}
-						{...stylex.props(form.input)}
-					/>
-				</label>
+				</div>
 				{errors.map(e => (
 					<p key={e} role='alert' {...stylex.props(form.error)}>
 						{e}
@@ -149,22 +149,25 @@ const SettingsForm = ({ settings }: { settings: Settings }) => {
 						Saved
 					</p>
 				) : null}
-				<button type='button' onClick={() => void save()} {...stylex.props(form.button)}>
-					Save settings
-				</button>
+				<div {...stylex.props(form.actions)}>
+					<button type='button' onClick={() => void save()} {...stylex.props(form.button)}>
+						Save settings
+					</button>
+				</div>
 			</section>
 			<section aria-label='Notifications' {...stylex.props(form.section)}>
 				<h2 {...stylex.props(form.heading)}>Notifications</h2>
-				{NOTIFICATIONS.map(({ key, label }) => (
-					<label key={key} {...stylex.props(form.check)}>
-						<input
-							type='checkbox'
-							checked={settings.notifications[key]}
-							onChange={e => void toggle(key, e.target.checked)}
-						/>
-						{label}
-					</label>
-				))}
+				<div {...stylex.props(form.body)}>
+					{NOTIFICATIONS.map(({ key, label }) => (
+						<label key={key} {...stylex.props(form.check)}>
+							<span>{label}</span>
+							<Switch
+								checked={settings.notifications[key]}
+								onChange={e => void toggle(key, e.target.checked)}
+							/>
+						</label>
+					))}
+				</div>
 				<PushButton />
 			</section>
 		</>
@@ -183,15 +186,11 @@ const SettingsPage = () => {
 	};
 
 	return (
-		<main {...stylex.props(styles.page)}>
+		<Screen title='Settings'>
 			{settingsDoc.error ? (
-				<p role='alert' {...stylex.props(form.error)}>
-					Couldn&rsquo;t load the settings
-				</p>
+				<Note error>Couldn&rsquo;t load the settings</Note>
 			) : settingsDoc.loading ? (
-				<p role='status' {...stylex.props(styles.note)}>
-					Loading…
-				</p>
+				<Note loading>Loading…</Note>
 			) : (
 				<SettingsForm settings={settings} />
 			)}
@@ -200,7 +199,7 @@ const SettingsPage = () => {
 			</Suspense>
 			<TariffEditor />
 			<AllowlistEditor />
-		</main>
+		</Screen>
 	);
 };
 

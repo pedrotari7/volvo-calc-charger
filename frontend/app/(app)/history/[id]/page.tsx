@@ -6,52 +6,47 @@ import { hourRateExVat } from '@shared/pricing';
 import { localDateOf, localParts } from '@shared/time';
 import type { PriceDay, PricedSession, Tariff } from '@shared/types';
 import { documentId, where } from 'firebase/firestore';
-import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useMemo } from 'react';
+import { Group } from '../../../../components/List';
+import { Screen } from '../../../../components/Screen';
+import { Note } from '../../../../components/Spinner';
 import { StatusRow } from '../../../../components/StatusRow';
 import { useCollection } from '../../../../lib/useCollection';
 import { useDoc } from '../../../../lib/useDoc';
 import { colors } from '../../../tokens.stylex';
 
 const styles = stylex.create({
-	page: { display: 'flex', flexDirection: 'column', gap: 12, padding: 16, maxWidth: 560, marginInline: 'auto' },
-	header: { display: 'flex', alignItems: 'center', gap: 8 },
-	back: { fontSize: 14, color: colors.info },
-	title: { fontSize: 16, fontWeight: 600, color: colors.ink },
-	card: {
-		padding: 16,
-		borderRadius: 16,
-		backgroundColor: colors.surface,
-		borderWidth: 1,
-		borderStyle: 'solid',
-		borderColor: colors.line,
-		display: 'flex',
-		flexDirection: 'column',
-		gap: 8,
+	scroll: { overflowX: 'auto', maxWidth: '100%', WebkitOverflowScrolling: 'touch' },
+	table: {
+		borderCollapse: 'collapse',
+		fontSize: 13,
+		color: colors.ink,
+		width: '100%',
+		fontVariantNumeric: 'tabular-nums',
 	},
-	scroll: { overflowX: 'auto', maxWidth: '100%' },
-	table: { borderCollapse: 'collapse', fontSize: 12, color: colors.ink, width: '100%' },
 	th: {
 		textAlign: 'right',
 		color: colors.muted,
-		fontWeight: 400,
-		paddingBlock: 6,
-		paddingInline: 6,
+		fontWeight: 500,
+		fontSize: 12,
+		paddingBlock: 10,
+		paddingInline: 8,
 		whiteSpace: 'nowrap',
+		backgroundColor: colors.raised,
 	},
 	td: {
 		textAlign: 'right',
-		paddingBlock: 6,
-		paddingInline: 6,
+		paddingBlock: 9,
+		paddingInline: 8,
 		whiteSpace: 'nowrap',
-		borderTopWidth: 1,
+		borderTopWidth: 0.5,
 		borderTopStyle: 'solid',
 		borderTopColor: colors.line,
 	},
-	foot: { fontWeight: 600 },
-	note: { fontSize: 13, color: colors.muted },
-	error: { fontSize: 13, color: colors.bad },
+	foot: { fontWeight: 700 },
+	first: { textAlign: 'left', paddingLeft: 16 },
+	last: { paddingRight: 16 },
 });
 
 // Money without the unit; the column header carries "kr".
@@ -108,40 +103,27 @@ const SessionDetailPage = () => {
 		[s, days, tariffs.data]
 	);
 
-	const header = (
-		<div {...stylex.props(styles.header)}>
-			<Link href='/history' {...stylex.props(styles.back)}>
-				‹ History
-			</Link>
-		</div>
-	);
+	const back = { href: '/history', label: 'History' };
 
 	if (session.error) {
 		return (
-			<main {...stylex.props(styles.page)}>
-				{header}
-				<p role='alert' {...stylex.props(styles.error)}>
-					Couldn&rsquo;t load the session
-				</p>
-			</main>
+			<Screen title='Session' back={back}>
+				<Note error>Couldn&rsquo;t load the session</Note>
+			</Screen>
 		);
 	}
 	if (session.loading) {
 		return (
-			<main {...stylex.props(styles.page)}>
-				{header}
-				<p role='status' {...stylex.props(styles.note)}>
-					Loading…
-				</p>
-			</main>
+			<Screen title='Session' back={back}>
+				<Note loading>Loading…</Note>
+			</Screen>
 		);
 	}
 	if (!s) {
 		return (
-			<main {...stylex.props(styles.page)}>
-				{header}
-				<p {...stylex.props(styles.note)}>Session not found</p>
-			</main>
+			<Screen title='Session' back={back}>
+				<Note>Session not found</Note>
+			</Screen>
 		);
 	}
 
@@ -153,10 +135,8 @@ const SessionDetailPage = () => {
 	const differs = complete && storedTotal !== null && Math.abs(recomputed - storedTotal) > 0.01;
 
 	return (
-		<main {...stylex.props(styles.page)}>
-			{header}
-			<section aria-label='Session' {...stylex.props(styles.card)}>
-				<h1 {...stylex.props(styles.title)}>{localDateOf(s.startUtc)}</h1>
+		<Screen title={localDateOf(s.startUtc)} back={back}>
+			<Group label='Session'>
 				<StatusRow label='Energy' value={formatKwh(s.kWh)} />
 				{storedTotal !== null ? (
 					<StatusRow label='Total incl. VAT' value={formatKr(storedTotal)} />
@@ -167,23 +147,27 @@ const SessionDetailPage = () => {
 				{storedTotal !== null ? (
 					<StatusRow label='Total incl. peak share' value={formatKr(storedTotal + s.peakShare)} />
 				) : null}
-			</section>
+			</Group>
 			{tableError ? (
-				<p role='alert' {...stylex.props(styles.error)}>
-					Couldn&rsquo;t load prices
-				</p>
+				<Note error>Couldn&rsquo;t load prices</Note>
 			) : tableLoading ? (
-				<p role='status' {...stylex.props(styles.note)}>
-					Loading…
-				</p>
+				<Note loading>Loading…</Note>
 			) : (
-				<>
+				<Group header='Per hour' footer={differs ? 'Breakdown uses current prices and tariffs' : undefined}>
 					<div {...stylex.props(styles.scroll)}>
 						<table aria-label='Cost per hour (kr, VAT separate)' {...stylex.props(styles.table)}>
 							<thead>
 								<tr>
-									{COLS.map(c => (
-										<th key={c} scope='col' {...stylex.props(styles.th)}>
+									{COLS.map((c, i) => (
+										<th
+											key={c}
+											scope='col'
+											{...stylex.props(
+												styles.th,
+												i === 0 && styles.first,
+												i === COLS.length - 1 && styles.last
+											)}
+										>
 											{c}
 										</th>
 									))}
@@ -192,11 +176,11 @@ const SessionDetailPage = () => {
 							<tbody>
 								{rows.map(r => (
 									<tr key={r.key}>
-										<td {...stylex.props(styles.td)}>{r.hour}</td>
+										<td {...stylex.props(styles.td, styles.first)}>{r.hour}</td>
 										<td {...stylex.props(styles.td)}>{formatKwh(r.kWh)}</td>
 										{(['spot', 'markup', 'transfer', 'energyTax', 'vat', 'total'] as const).map(
 											k => (
-												<td key={k} {...stylex.props(styles.td)}>
+												<td key={k} {...stylex.props(styles.td, k === 'total' && styles.last)}>
 													{r.parts ? n2(r.parts[k]) : '–'}
 												</td>
 											)
@@ -206,10 +190,13 @@ const SessionDetailPage = () => {
 							</tbody>
 							<tfoot>
 								<tr>
-									<td {...stylex.props(styles.td, styles.foot)}>Sum</td>
+									<td {...stylex.props(styles.td, styles.foot, styles.first)}>Sum</td>
 									<td {...stylex.props(styles.td, styles.foot)}>{formatKwh(s.kWh)}</td>
 									{(['spot', 'markup', 'transfer', 'energyTax', 'vat', 'total'] as const).map(k => (
-										<td key={k} {...stylex.props(styles.td, styles.foot)}>
+										<td
+											key={k}
+											{...stylex.props(styles.td, styles.foot, k === 'total' && styles.last)}
+										>
 											{complete ? n2(sum(rows, k)) : '–'}
 										</td>
 									))}
@@ -217,10 +204,9 @@ const SessionDetailPage = () => {
 							</tfoot>
 						</table>
 					</div>
-					{differs ? <p {...stylex.props(styles.note)}>Breakdown uses current prices and tariffs</p> : null}
-				</>
+				</Group>
 			)}
-		</main>
+		</Screen>
 	);
 };
 

@@ -57,35 +57,41 @@ export const AllowlistEditor = () => {
 					Couldn&rsquo;t load the allowlist
 				</p>
 			) : null}
-			<ul {...stylex.props(form.list)}>
-				{emails.map(value => (
-					<li key={value} {...stylex.props(form.item)}>
-						<span>{value}</span>
-						<button
-							type='button'
-							aria-label={`Remove ${value}`}
-							disabled={me === null || value.toLowerCase() === me}
-							onClick={() => void remove(value)}
-							{...stylex.props(form.secondary)}
-						>
-							Remove
-						</button>
-					</li>
-				))}
-			</ul>
-			<form onSubmit={e => void add(e)} noValidate {...stylex.props(form.row)}>
-				<input
-					type='email'
-					aria-label='Email to add'
-					placeholder='name@example.com'
-					value={email}
-					onChange={e => setEmail(e.target.value)}
-					{...stylex.props(form.input)}
-				/>
-				<button type='submit' {...stylex.props(form.button)}>
-					Add email
-				</button>
-			</form>
+			<div {...stylex.props(form.body)}>
+				<ul {...stylex.props(form.list)}>
+					{emails.map(value => (
+						<li key={value} {...stylex.props(form.item)}>
+							<span data-selectable {...stylex.props(form.fieldLabel)}>
+								{value}
+							</span>
+							<button
+								type='button'
+								aria-label={`Remove ${value}`}
+								disabled={me === null || value.toLowerCase() === me}
+								onClick={() => void remove(value)}
+								{...stylex.props(form.cellAction, form.destructive)}
+							>
+								Remove
+							</button>
+						</li>
+					))}
+				</ul>
+				<form onSubmit={e => void add(e)} noValidate {...stylex.props(form.item)}>
+					<input
+						type='email'
+						aria-label='Email to add'
+						placeholder='name@example.com'
+						autoCapitalize='none'
+						autoCorrect='off'
+						value={email}
+						onChange={e => setEmail(e.target.value)}
+						{...stylex.props(form.input, form.wide)}
+					/>
+					<button type='submit' {...stylex.props(form.cellAction)}>
+						Add email
+					</button>
+				</form>
+			</div>
 			{error ? (
 				<p role='alert' {...stylex.props(form.error)}>
 					{error}

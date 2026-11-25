@@ -35,9 +35,16 @@ export const PushButton = () => {
 
 	return (
 		<>
-			<button type='button' disabled={busy || !user} onClick={() => void run()} {...stylex.props(form.button)}>
-				Enable notifications
-			</button>
+			<div {...stylex.props(form.actions)}>
+				<button
+					type='button'
+					disabled={busy || !user}
+					onClick={() => void run()}
+					{...stylex.props(form.secondary)}
+				>
+					Enable notifications
+				</button>
+			</div>
 			{result ? (
 				<p role='status' {...stylex.props(result === 'enabled' ? form.ok : form.error)}>
 					{MESSAGES[result]}

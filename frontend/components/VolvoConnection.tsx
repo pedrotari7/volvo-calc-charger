@@ -64,6 +64,22 @@ export const VolvoConnection = () => {
 	return (
 		<section aria-label='Volvo connection' {...stylex.props(form.section)}>
 			<h2 {...stylex.props(form.heading)}>Volvo</h2>
+			<div {...stylex.props(form.body)}>
+				<div {...stylex.props(form.cell)}>
+					<span>Connection</span>
+					{status.error ? null : status.loading ? null : (
+						<span {...stylex.props(connected ? form.okValue : form.mutedValue)}>
+							{expired
+								? 'Connection expired'
+								: connected
+									? data?.grantStartedAt
+										? `Connected · valid until ${validUntil(data.grantStartedAt)}`
+										: 'Connected'
+									: 'Not connected'}
+						</span>
+					)}
+				</div>
+			</div>
 			{result === 'connected' ? (
 				<p role='status' {...stylex.props(form.ok)}>
 					Volvo connected
@@ -78,17 +94,7 @@ export const VolvoConnection = () => {
 				<p role='alert' {...stylex.props(form.error)}>
 					Couldn&rsquo;t load the Volvo status
 				</p>
-			) : status.loading ? null : (
-				<p {...stylex.props(form.note)}>
-					{expired
-						? 'Connection expired'
-						: connected
-							? data?.grantStartedAt
-								? `Connected · valid until ${validUntil(data.grantStartedAt)}`
-								: 'Connected'
-							: 'Not connected'}
-				</p>
-			)}
+			) : null}
 			<div {...stylex.props(form.row)}>
 				<button
 					type='button'
@@ -99,7 +105,12 @@ export const VolvoConnection = () => {
 					{expired || connected ? 'Reconnect' : 'Connect Volvo'}
 				</button>
 				{connected || expired ? (
-					<button type='button' disabled={busy} onClick={disconnect} {...stylex.props(form.secondary)}>
+					<button
+						type='button'
+						disabled={busy}
+						onClick={disconnect}
+						{...stylex.props(form.secondary, form.destructive)}
+					>
 						Disconnect
 					</button>
 				) : null}

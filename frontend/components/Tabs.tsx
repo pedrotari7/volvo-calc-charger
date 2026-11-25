@@ -3,14 +3,16 @@
 import * as stylex from '@stylexjs/stylex';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { colors, tint } from '../app/tokens.stylex';
+import { colors, layout, tint } from '../app/tokens.stylex';
+import type { IconName } from './Icon';
+import { Icon } from './Icon';
 
-const TABS = [
-	{ href: '/', label: 'Home' },
-	{ href: '/car', label: 'Car' },
-	{ href: '/history', label: 'History' },
-	{ href: '/settings', label: 'Settings' },
-] as const;
+const TABS: readonly { href: string; label: string; icon: IconName }[] = [
+	{ href: '/', label: 'Home', icon: 'bolt' },
+	{ href: '/car', label: 'Car', icon: 'car' },
+	{ href: '/history', label: 'History', icon: 'clock' },
+	{ href: '/settings', label: 'Settings', icon: 'gear' },
+];
 
 const styles = stylex.create({
 	nav: {
@@ -18,22 +20,34 @@ const styles = stylex.create({
 		bottom: 0,
 		left: 0,
 		right: 0,
-		display: 'flex',
-		backgroundColor: colors.raised,
-		borderTopWidth: 1,
+		zIndex: 30,
+		backgroundColor: tint.bar,
+		backdropFilter: 'saturate(180%) blur(20px)',
+		WebkitBackdropFilter: 'saturate(180%) blur(20px)',
+		borderTopWidth: 0.5,
 		borderTopStyle: 'solid',
 		borderTopColor: colors.line,
-		paddingBottom: 'env(safe-area-inset-bottom)',
+		paddingBottom: layout.safeBottom,
 	},
+	inner: { display: 'flex', maxWidth: layout.maxWidth, marginInline: 'auto', height: layout.tabBar },
 	tab: {
 		flexGrow: 1,
 		flexBasis: 0,
-		textAlign: 'center',
-		paddingBlock: 14,
-		fontSize: 13,
-		color: colors.muted,
+		display: 'flex',
+		flexDirection: 'column',
+		alignItems: 'center',
+		justifyContent: 'center',
+		gap: 2,
+		paddingTop: 4,
+		fontSize: 10,
+		fontWeight: 500,
+		letterSpacing: '0.01em',
+		color: colors.faint,
+		transform: { default: 'none', ':active': 'scale(0.92)' },
+		transitionProperty: 'transform, color',
+		transitionDuration: '150ms',
 	},
-	active: { color: colors.brand, backgroundColor: tint.brand15 },
+	active: { color: colors.brand },
 });
 
 const Tabs = () => {
@@ -41,20 +55,28 @@ const Tabs = () => {
 
 	return (
 		<nav aria-label='Main' {...stylex.props(styles.nav)}>
-			{TABS.map(({ href, label }) => {
-				const active = href === '/' ? pathname === '/' : pathname.startsWith(href);
+			<div {...stylex.props(styles.inner)}>
+				{TABS.map(({ href, label, icon }) => {
+					const active = href === '/' ? pathname === '/' : pathname.startsWith(href);
 
-				return (
-					<Link
-						key={href}
-						href={href}
-						aria-current={active ? 'page' : undefined}
-						{...stylex.props(styles.tab, active && styles.active)}
-					>
-						{label}
-					</Link>
-				);
-			})}
+					return (
+						<Link
+							key={href}
+							href={href}
+							aria-current={active ? 'page' : undefined}
+							{...stylex.props(styles.tab, active && styles.active)}
+						>
+							<Icon
+								name={icon}
+								size={26}
+								filled={active && icon === 'bolt'}
+								strokeWidth={active ? 2 : 1.7}
+							/>
+							{label}
+						</Link>
+					);
+				})}
+			</div>
 		</nav>
 	);
 };

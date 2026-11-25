@@ -1,13 +1,4 @@
-import * as stylex from '@stylexjs/stylex';
-import { colors } from '../app/tokens.stylex';
-
-const styles = stylex.create({
-	row: { display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 14, color: colors.ink },
-	label: { color: colors.muted },
-	value: { textAlign: 'right' },
-	bad: { color: colors.bad },
-	good: { color: colors.good },
-});
+import { Cell } from './List';
 
 interface Props {
 	label: string;
@@ -15,11 +6,5 @@ interface Props {
 	tone?: 'good' | 'bad';
 }
 
-export const StatusRow = ({ label, value, tone }: Props) => (
-	<div {...stylex.props(styles.row)}>
-		<span {...stylex.props(styles.label)}>{label}</span>
-		<span {...stylex.props(styles.value, tone === 'bad' && styles.bad, tone === 'good' && styles.good)}>
-			{value}
-		</span>
-	</div>
-);
+/** A label/value line inside a grouped list. */
+export const StatusRow = ({ label, value, tone }: Props) => <Cell label={label} value={value} tone={tone} />;
