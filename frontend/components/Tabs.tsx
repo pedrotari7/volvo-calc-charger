@@ -14,6 +14,13 @@ const TABS: readonly { href: string; label: string; icon: IconName }[] = [
 	{ href: '/settings', label: 'Settings', icon: 'gear' },
 ];
 
+const bounce = stylex.keyframes({
+	'0%': { transform: 'scale(1)' },
+	'30%': { transform: 'scale(0.8) translateY(2px)' },
+	'60%': { transform: 'scale(1.18) translateY(-3px)' },
+	'100%': { transform: 'scale(1)' },
+});
+
 const styles = stylex.create({
 	nav: {
 		position: 'fixed',
@@ -37,8 +44,8 @@ const styles = stylex.create({
 		flexDirection: 'column',
 		alignItems: 'center',
 		justifyContent: 'center',
-		gap: 2,
-		paddingTop: 4,
+		gap: 1,
+		paddingTop: 2,
 		fontSize: 10,
 		fontWeight: 500,
 		letterSpacing: '0.01em',
@@ -48,6 +55,22 @@ const styles = stylex.create({
 		transitionDuration: '150ms',
 	},
 	active: { color: colors.brand },
+	iconWrap: {
+		display: 'flex',
+		alignItems: 'center',
+		justifyContent: 'center',
+		width: 52,
+		height: 30,
+		borderRadius: 15,
+		transitionProperty: 'background-color',
+		transitionDuration: '250ms',
+	},
+	iconActive: {
+		backgroundColor: tint.brand15,
+		animationName: bounce,
+		animationDuration: '520ms',
+		animationTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+	},
 });
 
 const Tabs = () => {
@@ -66,12 +89,14 @@ const Tabs = () => {
 							aria-current={active ? 'page' : undefined}
 							{...stylex.props(styles.tab, active && styles.active)}
 						>
-							<Icon
-								name={icon}
-								size={26}
-								filled={active && icon === 'bolt'}
-								strokeWidth={active ? 2 : 1.7}
-							/>
+							<span {...stylex.props(styles.iconWrap, active && styles.iconActive)}>
+								<Icon
+									name={icon}
+									size={24}
+									filled={active && icon === 'bolt'}
+									strokeWidth={active ? 2 : 1.7}
+								/>
+							</span>
 							{label}
 						</Link>
 					);

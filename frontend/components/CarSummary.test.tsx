@@ -35,4 +35,12 @@ describe('CarSummary', () => {
 		expect(screen.getByText('Plugged in')).toBeInTheDocument();
 		expect(screen.queryByText(/so far/)).toBeNull();
 	});
+
+	it('says the car is ready once the battery reaches the target', () => {
+		render(
+			<CarSummary car={car(310)} charger={{ ...charger, charging: false }} now={NOW} rateNow={null} target={50} />
+		);
+		expect(screen.getByText('Ready to roll')).toBeInTheDocument();
+		expect(screen.queryByText('Plugged in')).toBeNull();
+	});
 });

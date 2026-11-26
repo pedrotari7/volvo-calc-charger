@@ -36,19 +36,25 @@ describe('MonthSummary', () => {
 	it('shows kr per 100 km, petrol cost and saving', () => {
 		render(<MonthSummary month='2026-11' totals={totals([session('a')])} final={false} />);
 		expect(screen.getByText('November 2026')).toBeInTheDocument();
-		expect(screen.getByText('20,00 kr')).toBeInTheDocument();
+		expect(screen.getByText('20 kr')).toBeInTheDocument();
 		expect(screen.getByText('Saved vs petrol (67,50 kr)')).toBeInTheDocument();
-		expect(screen.getByText('57,50 kr')).toBeInTheDocument();
+		expect(screen.getByText('58 kr')).toBeInTheDocument();
 		expect(screen.getByText('10,0 kWh charged at home')).toBeInTheDocument();
 		expect(screen.getByText('100 öre')).toBeInTheDocument();
+	});
+
+	it('turns a petrol saving into kanelbullar', () => {
+		render(<MonthSummary month='2026-11' totals={totals([session('a')])} final={false} />);
+		expect(screen.getByText('1 kanelbulle')).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: /Saved vs petrol/ })).toBeInTheDocument();
 	});
 
 	it('marks km figures estimated from the car consumption with ≈', () => {
 		// 10 kWh × 0.9 / 18 kWh per 100 km = 50 km: 20 kr per 100 km, petrol 67,50 kr.
 		const t = monthTotals([session('a')], '2026-11', odo, null, DEFAULT_SETTINGS, 18);
 		render(<MonthSummary month='2026-11' totals={t} final={false} />);
-		expect(screen.getByText('≈ 20,00 kr')).toBeInTheDocument();
-		expect(screen.getByText('≈ 57,50 kr')).toBeInTheDocument();
+		expect(screen.getByText('≈ 20 kr')).toBeInTheDocument();
+		expect(screen.getByText('≈ 58 kr')).toBeInTheDocument();
 	});
 
 	it('marks the peak fee as an estimate unless final', () => {

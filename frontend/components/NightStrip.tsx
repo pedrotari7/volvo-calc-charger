@@ -6,6 +6,11 @@ import { formatLocalTime } from '../lib/localTime';
 
 const HOUR_MS = 3_600_000;
 
+const flow = stylex.keyframes({
+	from: { backgroundPosition: '-120% 0, 0 0' },
+	to: { backgroundPosition: '220% 0, 0 0' },
+});
+
 const styles = stylex.create({
 	wrap: { display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 4 },
 	bar: {
@@ -20,8 +25,15 @@ const styles = stylex.create({
 		top: 0,
 		bottom: 0,
 		borderRadius: 7,
-		backgroundImage: `linear-gradient(90deg, ${colors.brandStrong}, ${colors.brand})`,
+		// A highlight sweeps along the window, like energy flowing in.
+		backgroundImage: `linear-gradient(100deg, transparent 30%, rgb(255 255 255 / 0.45) 50%, transparent 70%), linear-gradient(90deg, ${colors.brandStrong}, #7ee88f)`,
+		backgroundSize: '50% 100%, 100% 100%',
+		backgroundRepeat: 'no-repeat',
 		boxShadow: `0 0 12px ${tint.brand30}`,
+		animationName: flow,
+		animationDuration: '2.6s',
+		animationTimingFunction: 'ease-in-out',
+		animationIterationCount: 'infinite',
 	},
 	hour: { position: 'absolute', top: 4, bottom: 4, width: 1, backgroundColor: 'rgb(255 255 255 / 0.12)' },
 	now: {

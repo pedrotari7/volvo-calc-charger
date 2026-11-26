@@ -1,6 +1,10 @@
+'use client';
+
 import * as stylex from '@stylexjs/stylex';
+import { useEffect, useRef } from 'react';
 import { formatAgo, formatKr, formatKwh } from '@shared/format';
 import type { CarState, ChargerState } from '@shared/types';
+import { celebrateOnce } from '../lib/confetti';
 import { formatLocalTime } from '../lib/localTime';
 import { colors, fonts, tint } from '../app/tokens.stylex';
 import { BatteryRing } from './BatteryRing';
@@ -9,6 +13,12 @@ import { Icon } from './Icon';
 const pulse = stylex.keyframes({
 	'0%, 100%': { opacity: 1 },
 	'50%': { opacity: 0.45 },
+});
+
+// The glow behind a charging car drifts slowly across the card.
+const drift = stylex.keyframes({
+	'0%, 100%': { backgroundPosition: '100% 0%' },
+	'50%': { backgroundPosition: '60% 40%' },
 });
 
 const styles = stylex.create({
@@ -23,7 +33,16 @@ const styles = stylex.create({
 		overflow: 'hidden',
 	},
 	charging: {
-		backgroundImage: `radial-gradient(120% 90% at 100% 0%, ${tint.brand15}, transparent 60%)`,
+		backgroundImage: `radial-gradient(80% 70% at center, ${tint.brand30}, transparent 70%)`,
+		backgroundSize: '200% 200%',
+		backgroundRepeat: 'no-repeat',
+		animationName: drift,
+		animationDuration: '7s',
+		animationTimingFunction: 'ease-in-out',
+		animationIterationCount: 'infinite',
+	},
+	ready: {
+		backgroundImage: 'radial-gradient(120% 90% at 0% 0%, rgb(48 209 88 / 0.18), transparent 60%)',
 	},
 	top: { display: 'flex', alignItems: 'center', gap: 20 },
 	facts: { display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 8, minWidth: 0 },
@@ -49,6 +68,11 @@ const styles = stylex.create({
 	},
 	pillOn: { backgroundColor: tint.brand15, color: colors.brand },
 	pillPlug: { backgroundColor: tint.info15, color: colors.info },
+	pillReady: {
+		color: '#04140a',
+		backgroundImage: 'linear-gradient(135deg, #a6f56b, #30d158)',
+		boxShadow: `0 4px 14px ${tint.brand30}`,
+	},
 	pulse: { animationName: pulse, animationDuration: '1.6s', animationIterationCount: 'infinite' },
 	chip: {
 		display: 'inline-flex',
@@ -81,7 +105,15 @@ interface Props {
 	target?: number;
 }
 
-const ChargerPill = ({ charger }: { charger: ChargerState }) => {
+const ChargerPill = ({ charger, ready }: { charger: ChargerState | null; ready: boolean }) => {
+	if (ready && !charger?.charging)
+		return (
+			<span {...stylex.props(styles.pill, styles.pillReady)}>
+				<Icon name='check' size={14} strokeWidth={2.6} />
+				Ready to roll
+			</span>
+		);
+	if (!charger) return null;
 	if (charger.charging)
 		return (
 			<span {...stylex.props(styles.pill, styles.pillOn)}>
@@ -106,13 +138,27 @@ export const CarSummary = ({ car, charger, now, rateNow, target }: Props) => {
 	const range = battery?.value.rangeKm;
 	const estFullAt = battery?.value.estFullAt ?? null;
 	const charging = charger?.charging === true;
+	const percent = battery?.value.percent ?? null;
+	const ready = percent !== null && target !== undefined && percent >= target;
+	const card = useRef<HTMLElement>(null);
+
+	// Reaching the target is worth a little party, once a day.
+	useEffect(() => {
+		if (!ready) return;
+		const box = card.current?.getBoundingClientRect();
+		celebrateOnce(`ready:${now.slice(0, 10)}`, box ? box.left + 82 : undefined, box ? box.top + 86 : undefined);
+	}, [ready, now]);
 
 	return (
-		<section aria-label='Car' {...stylex.props(styles.card, charging && styles.charging)}>
+		<section
+			ref={card}
+			aria-label='Car'
+			{...stylex.props(styles.card, ready && styles.ready, charging && styles.charging)}
+		>
 			<div {...stylex.props(styles.top)}>
-				<BatteryRing percent={battery?.value.percent ?? null} target={target} charging={charging} />
+				<BatteryRing percent={percent} target={target} charging={charging} />
 				<div {...stylex.props(styles.facts)}>
-					{charger ? <ChargerPill charger={charger} /> : null}
+					<ChargerPill charger={charger} ready={ready} />
 					<span {...stylex.props(styles.range)}>
 						Range {range === null || range === undefined ? '–' : `${range} km`}
 					</span>

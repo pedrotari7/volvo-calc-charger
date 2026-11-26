@@ -1,11 +1,24 @@
 'use client';
 
 import * as stylex from '@stylexjs/stylex';
+import type { MouseEvent } from 'react';
 import { formatKr, formatKwh } from '@shared/format';
 import type { MonthTotals } from '@shared/insights';
 import { chart, colors, fonts, tint } from '../app/tokens.stylex';
+import { burstConfetti } from '../lib/confetti';
 import { formatMonth } from '../lib/localTime';
 import { useCountUp } from '../lib/useCountUp';
+
+// What a cinnamon bun costs at the bakery, for turning savings into something you can eat.
+const BULLE_KR = 35;
+
+// Tiles are narrow: whole kronor, with the minus as a real minus sign, and never split from "kr".
+const tileKr = (n: number): string => `${Math.round(n).toLocaleString('sv-SE')}\u00a0kr`;
+
+const grow = stylex.keyframes({
+	from: { transform: 'scaleY(0)' },
+	to: { transform: 'scaleY(1)' },
+});
 
 const styles = stylex.create({
 	card: {
@@ -15,6 +28,7 @@ const styles = stylex.create({
 		padding: 20,
 		borderRadius: 20,
 		backgroundColor: colors.surface,
+		backgroundImage: 'radial-gradient(100% 60% at 100% 0%, rgb(125 122 255 / 0.12), transparent 60%)',
 	},
 	month: {
 		margin: 0,
@@ -54,21 +68,42 @@ const styles = stylex.create({
 		backgroundColor: tint.white5,
 		minWidth: 0,
 	},
+	tileButton: {
+		textAlign: 'left',
+		transform: { default: 'none', ':active': 'scale(0.95)' },
+		transitionProperty: 'transform',
+		transitionDuration: '150ms',
+	},
+	tileGood: {
+		backgroundImage: 'linear-gradient(160deg, rgb(48 209 88 / 0.2), rgb(48 209 88 / 0.04))',
+	},
 	tileValue: {
 		fontFamily: fonts.rounded,
-		fontSize: 19,
+		fontSize: 16,
+		lineHeight: 1.2,
 		fontWeight: 700,
 		color: colors.ink,
 		fontVariantNumeric: 'tabular-nums',
 		whiteSpace: 'nowrap',
-		overflow: 'hidden',
-		textOverflow: 'ellipsis',
 	},
 	good: { color: colors.good },
+	fun: { fontSize: 14, color: colors.muted },
+	funValue: { color: colors.ink, fontWeight: 600 },
 	tileLabel: { fontSize: 12, color: colors.muted },
 	days: { display: 'flex', alignItems: 'flex-end', gap: 2, height: 44 },
-	day: { flexGrow: 1, flexBasis: 0, borderRadius: '3px 3px 1px 1px', backgroundColor: chart.track, minHeight: 2 },
-	dayOn: { backgroundColor: chart.energy },
+	day: {
+		flexGrow: 1,
+		flexBasis: 0,
+		borderRadius: '3px 3px 1px 1px',
+		backgroundColor: chart.track,
+		minHeight: 2,
+		transformOrigin: 'bottom',
+		animationName: grow,
+		animationDuration: '600ms',
+		animationTimingFunction: 'cubic-bezier(0.32, 0.72, 0, 1)',
+		animationFillMode: 'both',
+	},
+	dayOn: { backgroundImage: `linear-gradient(180deg, #7ee88f, ${chart.energy})` },
 	daysAxis: { display: 'flex', justifyContent: 'space-between', fontSize: 11, color: colors.faint },
 	pending: { fontSize: 13, color: colors.warn },
 });
@@ -81,12 +116,32 @@ interface Props {
 	daily?: number[];
 }
 
-const Tile = ({ value, label, good }: { value: string; label: string; good?: boolean }) => (
-	<div {...stylex.props(styles.tile)}>
-		<span {...stylex.props(styles.tileValue, good && styles.good)}>{value}</span>
-		<span {...stylex.props(styles.tileLabel)}>{label}</span>
-	</div>
-);
+interface TileProps {
+	value: string;
+	label: string;
+	good?: boolean;
+	onPress?: (e: MouseEvent<HTMLButtonElement>) => void;
+}
+
+const Tile = ({ value, label, good, onPress }: TileProps) => {
+	const body = (
+		<>
+			<span {...stylex.props(styles.tileValue, good && styles.good)}>{value}</span>
+			<span {...stylex.props(styles.tileLabel)}>{label}</span>
+		</>
+	);
+	return onPress ? (
+		<button
+			type='button'
+			onClick={onPress}
+			{...stylex.props(styles.tile, styles.tileButton, good && styles.tileGood)}
+		>
+			{body}
+		</button>
+	) : (
+		<div {...stylex.props(styles.tile, good && styles.tileGood)}>{body}</div>
+	);
+};
 
 export const MonthSummary = ({ month, totals: t, final, daily }: Props) => {
 	const total = useCountUp(t.cost);
@@ -94,7 +149,13 @@ export const MonthSummary = ({ month, totals: t, final, daily }: Props) => {
 	const peakLabel = final ? 'Peak fee' : 'Peak fee (estimate)';
 	const maxDay = Math.max(0, ...(daily ?? []));
 	// Km from the energy charged and the car's average consumption rather than the odometer.
-	const approx = t.kmEstimated ? '≈ ' : '';
+	const approx = t.kmEstimated ? '≈\u00a0' : '';
+	const saved = t.saving !== null && t.saving > 0;
+	const bullar = saved ? Math.floor(t.saving! / BULLE_KR) : 0;
+	const celebrate = (e: MouseEvent<HTMLButtonElement>) => {
+		const box = e.currentTarget.getBoundingClientRect();
+		burstConfetti(box.left + box.width / 2, box.top + box.height / 2);
+	};
 
 	return (
 		<section aria-label={`Summary ${month}`} {...stylex.props(styles.card)}>
@@ -142,13 +203,23 @@ export const MonthSummary = ({ month, totals: t, final, daily }: Props) => {
 					value={t.energyKrPerKwh === null ? '–' : `${Math.round(t.energyKrPerKwh * 100)} öre`}
 					label='Energy per kWh'
 				/>
-				<Tile value={t.krPer100km === null ? '–' : `${approx}${formatKr(t.krPer100km)}`} label='Per 100 km' />
+				<Tile value={t.krPer100km === null ? '–' : `${approx}${tileKr(t.krPer100km)}`} label='Per 100 km' />
 				<Tile
-					value={t.saving === null ? '–' : `${approx}${formatKr(t.saving)}`}
+					value={t.saving === null ? '–' : `${approx}${tileKr(t.saving)}`}
 					label={t.petrolCost === null ? 'Saved vs petrol' : `Saved vs petrol (${formatKr(t.petrolCost)})`}
-					good={t.saving !== null && t.saving > 0}
+					good={saved}
+					onPress={saved ? celebrate : undefined}
 				/>
 			</div>
+			{bullar > 0 ? (
+				<p {...stylex.props(styles.fun)}>
+					That&rsquo;s about{' '}
+					<span {...stylex.props(styles.funValue)}>
+						{bullar} {bullar === 1 ? 'kanelbulle' : 'kanelbullar'}
+					</span>{' '}
+					not spent on petrol 🥐
+				</p>
+			) : null}
 
 			{daily && maxDay > 0 ? (
 				<div>
@@ -157,7 +228,10 @@ export const MonthSummary = ({ month, totals: t, final, daily }: Props) => {
 							<span
 								key={i}
 								title={`${i + 1}: ${formatKwh(kWh)}`}
-								style={{ height: `${Math.max(4, (kWh / maxDay) * 100)}%` }}
+								style={{
+									height: `${Math.max(4, (kWh / maxDay) * 100)}%`,
+									animationDelay: `${i * 15}ms`,
+								}}
 								{...stylex.props(styles.day, kWh > 0 && styles.dayOn)}
 							/>
 						))}

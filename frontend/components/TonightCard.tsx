@@ -7,16 +7,54 @@ import { colors, fonts, tint } from '../app/tokens.stylex';
 import { Icon } from './Icon';
 import { NightStrip } from './NightStrip';
 
+const twinkle = stylex.keyframes({
+	'0%, 100%': { opacity: 0.15, transform: 'scale(0.6)' },
+	'50%': { opacity: 0.9, transform: 'scale(1)' },
+});
+
+const glow = stylex.keyframes({
+	'0%, 100%': { filter: 'drop-shadow(0 0 2px rgb(165 163 255 / 0.5))' },
+	'50%': { filter: 'drop-shadow(0 0 7px rgb(165 163 255 / 0.95))' },
+});
+
+// Fixed positions (% of the card) so the sky is the same on every render.
+const STARS: readonly { x: number; y: number; s: number; d: number }[] = [
+	{ x: 62, y: 10, s: 2, d: 0 },
+	{ x: 78, y: 22, s: 3, d: 1.2 },
+	{ x: 90, y: 8, s: 2, d: 2.1 },
+	{ x: 70, y: 34, s: 1.5, d: 0.6 },
+	{ x: 85, y: 44, s: 2, d: 1.8 },
+	{ x: 95, y: 28, s: 1.5, d: 2.7 },
+	{ x: 54, y: 24, s: 1.5, d: 3.1 },
+	{ x: 46, y: 6, s: 2, d: 1.5 },
+];
+
 const styles = stylex.create({
 	card: {
+		position: 'relative',
+		overflow: 'hidden',
 		padding: 20,
 		borderRadius: 20,
 		backgroundColor: colors.surface,
-		backgroundImage: 'radial-gradient(110% 80% at 0% 0%, rgb(94 92 230 / 0.22), transparent 60%)',
+		backgroundImage:
+			'radial-gradient(110% 80% at 0% 0%, rgb(94 92 230 / 0.28), transparent 60%), linear-gradient(180deg, rgb(20 18 48 / 0.6), transparent 70%)',
 		display: 'flex',
 		flexDirection: 'column',
 		gap: 6,
 	},
+	sky: { position: 'absolute', inset: 0, pointerEvents: 'none' },
+	star: {
+		position: 'absolute',
+		borderRadius: '50%',
+		backgroundColor: '#e6e5ff',
+		boxShadow: '0 0 6px rgb(230 229 255 / 0.8)',
+		animationName: twinkle,
+		animationDuration: '3.4s',
+		animationTimingFunction: 'ease-in-out',
+		animationIterationCount: 'infinite',
+	},
+	moon: { animationName: glow, animationDuration: '4s', animationIterationCount: 'infinite' },
+	content: { position: 'relative', display: 'flex', flexDirection: 'column', gap: 6 },
 	title: {
 		display: 'flex',
 		alignItems: 'center',
@@ -110,10 +148,25 @@ const Body = ({ plan, now, readyBy = '07:00' }: Props & { plan: Plan }) => {
 
 export const TonightCard = ({ plan, now, readyBy }: Props) => (
 	<section aria-label='Tonight' {...stylex.props(styles.card)}>
-		<h2 {...stylex.props(styles.title)}>
-			<Icon name='moon' size={15} filled strokeWidth={1.4} />
-			Tonight
-		</h2>
-		{plan ? <Body plan={plan} now={now} readyBy={readyBy} /> : <p {...stylex.props(styles.note)}>No plan yet</p>}
+		<div aria-hidden {...stylex.props(styles.sky)}>
+			{STARS.map(({ x, y, s, d }) => (
+				<span
+					key={`${x}-${y}`}
+					style={{ left: `${x}%`, top: `${y}%`, width: s, height: s, animationDelay: `${d}s` }}
+					{...stylex.props(styles.star)}
+				/>
+			))}
+		</div>
+		<div {...stylex.props(styles.content)}>
+			<h2 {...stylex.props(styles.title)}>
+				<Icon name='moon' size={15} filled strokeWidth={1.4} {...stylex.props(styles.moon)} />
+				Tonight
+			</h2>
+			{plan ? (
+				<Body plan={plan} now={now} readyBy={readyBy} />
+			) : (
+				<p {...stylex.props(styles.note)}>No plan yet</p>
+			)}
+		</div>
 	</section>
 );
