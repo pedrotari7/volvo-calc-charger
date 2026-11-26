@@ -40,7 +40,11 @@ describe('parseZaptecSessions', () => {
 			],
 		};
 		const out = parseZaptecSessions(page);
-		expect(out.map(s => s.hours)).toEqual([[], [{ hourStartUtc: '2026-11-04T20:00:00.000Z', kWh: 1 }]]);
+		// Without details the energy still lands in an hour, so the session is never priced at 0 kr.
+		expect(out.map(s => s.hours)).toEqual([
+			[{ hourStartUtc: '2026-11-04T20:00:00.000Z', kWh: 1 }],
+			[{ hourStartUtc: '2026-11-04T20:00:00.000Z', kWh: 1 }],
+		]);
 	});
 	it('drops the 0 kWh session and parses the first one', () => {
 		const sessions = parseZaptecSessions(fixture());
@@ -56,7 +60,7 @@ describe('parseZaptecSessions', () => {
 			],
 		});
 	});
-	it('spreads sparse details evenly across hours', () => {
+	it('fills a sparse reading backwards from its timestamp at no more than 11 kW when no rate is known', () => {
 		const page = {
 			Data: [
 				{
@@ -73,9 +77,74 @@ describe('parseZaptecSessions', () => {
 		};
 		const [s] = parseZaptecSessions(page);
 		expect(s.hours).toEqual([
-			{ hourStartUtc: '2026-11-04T20:00:00.000Z', kWh: 10 },
-			{ hourStartUtc: '2026-11-04T21:00:00.000Z', kWh: 10 },
-			{ hourStartUtc: '2026-11-04T22:00:00.000Z', kWh: 10 },
+			{ hourStartUtc: '2026-11-04T20:00:00.000Z', kWh: 8 },
+			{ hourStartUtc: '2026-11-04T21:00:00.000Z', kWh: 11 },
+			{ hourStartUtc: '2026-11-04T22:00:00.000Z', kWh: 11 },
+		]);
+	});
+	it('puts energy after a timer gap in the hour before the reading, not across the idle evening', () => {
+		// Plugged in at 18:06; the car waits on its own timer, then charges ~10.6 kW from ~22:07.
+		const page = {
+			Data: [
+				{
+					Id: 'timer',
+					StartDateTime: '2026-11-14T18:06:34',
+					EndDateTime: '2026-11-15T09:17:18',
+					Energy: 19.9,
+					EnergyDetails: [
+						{ Timestamp: '2026-11-14T18:06:34+00:00', Energy: 0 },
+						{ Timestamp: '2026-11-14T23:00:00.120+00:00', Energy: 9.3 },
+						{ Timestamp: '2026-11-15T00:00:00.090+00:00', Energy: 10.6 },
+						{ Timestamp: '2026-11-15T09:17:18+00:00', Energy: 0 },
+					],
+				},
+			],
+		};
+		const [s] = parseZaptecSessions(page);
+		expect(s.hours).toEqual([
+			{ hourStartUtc: '2026-11-14T22:00:00.000Z', kWh: 9.3 },
+			{ hourStartUtc: '2026-11-14T23:00:00.000Z', kWh: 10.6 },
+		]);
+	});
+	it('never puts more than the observed rate into one hour when backfilling a long gap', () => {
+		const page = {
+			Data: [
+				{
+					Id: 'long',
+					StartDateTime: '2026-11-14T18:00:00',
+					EndDateTime: '2026-11-15T02:00:00',
+					Energy: 22,
+					EnergyDetails: [
+						{ Timestamp: '2026-11-15T01:00:00+00:00', Energy: 15 },
+						{ Timestamp: '2026-11-15T02:00:00+00:00', Energy: 7 },
+					],
+				},
+			],
+		};
+		const [s] = parseZaptecSessions(page);
+		expect(s.hours).toEqual([
+			{ hourStartUtc: '2026-11-14T22:00:00.000Z', kWh: 1 },
+			{ hourStartUtc: '2026-11-14T23:00:00.000Z', kWh: 7 },
+			{ hourStartUtc: '2026-11-15T00:00:00.000Z', kWh: 7 },
+			{ hourStartUtc: '2026-11-15T01:00:00.000Z', kWh: 7 },
+		]);
+	});
+	it('places energy the details do not account for before the session end', () => {
+		const page = {
+			Data: [
+				{
+					Id: 'short',
+					StartDateTime: '2026-11-04T20:00:00',
+					EndDateTime: '2026-11-04T22:30:00',
+					Energy: 12,
+					EnergyDetails: [{ Timestamp: '2026-11-04T21:00:00+00:00', Energy: 8 }],
+				},
+			],
+		};
+		const [s] = parseZaptecSessions(page);
+		expect(s.hours).toEqual([
+			{ hourStartUtc: '2026-11-04T20:00:00.000Z', kWh: 8 },
+			{ hourStartUtc: '2026-11-04T22:00:00.000Z', kWh: 4 },
 		]);
 	});
 	it('accepts camelCase keys', () => {

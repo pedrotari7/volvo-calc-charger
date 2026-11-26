@@ -4,7 +4,7 @@ import * as stylex from '@stylexjs/stylex';
 import { allInRateInclVat } from '@shared/pricing';
 import { addHours, eveningDateOf, floorHourUtc, localParts, monthKey } from '@shared/time';
 import type { CarState, ChargerState, MonthPeaks, PriceDay, Plan, Settings, Tariff } from '@shared/types';
-import { DEFAULT_SETTINGS } from '@shared/types';
+import { withDefaultSettings } from '@shared/types';
 import { documentId, where } from 'firebase/firestore';
 import { useMemo, useState } from 'react';
 import { Banner } from '../../components/Banner';
@@ -48,7 +48,7 @@ const HomePage = () => {
 	const days = useMemo(() => Object.fromEntries(prices.data.map(d => [d.id, d])), [prices.data]);
 	const rateNow = allInRateInclVat(floorHourUtc(now), days, tariffs.data);
 	const rec = plan.data?.recommendation ?? null;
-	const settings = useMemo<Settings>(() => ({ ...DEFAULT_SETTINGS, ...stored.data }), [stored.data]);
+	const settings = useMemo<Settings>(() => withDefaultSettings(stored.data), [stored.data]);
 	const peaksByMonth = useMemo(() => Object.fromEntries(peaks.data.map(p => [p.id, p])), [peaks.data]);
 	const chartWindow = estimateWindow ?? (rec ? { start: rec.start, end: rec.end } : null);
 

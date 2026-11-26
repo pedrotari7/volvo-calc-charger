@@ -2,7 +2,7 @@ import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { planTonight as computePlan } from '../../shared/planner';
 import { addHours, localDateOf, localParts, monthKey } from '../../shared/time';
 import type { CarState, ChargerState, IsoUtc, MonthPeaks, Plan, PriceDay, Settings, Tariff } from '../../shared/types';
-import { DEFAULT_SETTINGS } from '../../shared/types';
+import { withDefaultSettings } from '../../shared/types';
 import { db } from './lib/firebase';
 import { sendPush } from './lib/push';
 
@@ -21,12 +21,7 @@ export async function runPlanTonight(nowUtc: IsoUtc): Promise<Plan | null> {
 	if (battery === undefined || battery === null) return null;
 
 	const stored = (await db.doc('config/settings').get()).data() as Partial<Settings> | undefined;
-	const settings: Settings = {
-		...DEFAULT_SETTINGS,
-		...stored,
-		petrol: { ...DEFAULT_SETTINGS.petrol, ...stored?.petrol },
-		notifications: { ...DEFAULT_SETTINGS.notifications, ...stored?.notifications },
-	};
+	const settings: Settings = withDefaultSettings(stored);
 
 	const days: Record<string, PriceDay> = {};
 	for (const date of new Set([localDateOf(nowUtc), localDateOf(addHours(nowUtc, 24))])) {

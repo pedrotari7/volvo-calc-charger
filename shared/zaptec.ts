@@ -31,19 +31,51 @@ function get(o: Obj, key: string): unknown {
 	return undefined;
 }
 
-// Spread `kWh` over the UTC hours overlapped by [fromMs, toMs), proportional to overlap.
-function spread(fromMs: number, toMs: number, kWh: number, acc: Map<IsoUtc, number>): void {
+// Charging power assumed when a session has no interval to measure it from (a typical 11 kW wallbox).
+const FALLBACK_KW = 11;
+// Intervals shorter than this give unreliable rates (a few Wh over seconds), so they are not used to measure one.
+const MIN_RATE_INTERVAL_MS = 15 * 60_000;
+
+interface Interval {
+	fromMs: number;
+	toMs: number;
+	kWh: number;
+}
+
+/**
+ * Place `kWh` delivered in [fromMs, toMs) into UTC clock hours, filling backwards from `toMs` at no more
+ * than `kw`. Zaptec writes a reading only for hours with energy, so after a gap (the car waiting on its
+ * own timer) the energy was delivered just before the reading, not evenly across the idle hours.
+ */
+function backfill({ fromMs, toMs, kWh }: Interval, kw: number, acc: Map<IsoUtc, number>): void {
 	if (toMs <= fromMs) {
 		const h = floorHourUtc(new Date(toMs).toISOString());
 		acc.set(h, (acc.get(h) ?? 0) + kWh);
 		return;
 	}
-	const span = toMs - fromMs;
-	for (const h of utcHoursBetween(new Date(fromMs).toISOString(), new Date(toMs).toISOString())) {
+	// Never assume a rate too low to fit the energy into the interval.
+	const rate = Math.max(kw, (kWh * HOUR_MS) / (toMs - fromMs));
+	let left = kWh;
+	const hours = utcHoursBetween(new Date(fromMs).toISOString(), new Date(toMs).toISOString()).reverse();
+	for (const [i, h] of hours.entries()) {
 		const hs = Date.parse(h);
 		const overlap = Math.min(toMs, hs + HOUR_MS) - Math.max(fromMs, hs);
-		if (overlap > 0) acc.set(h, (acc.get(h) ?? 0) + (kWh * overlap) / span);
+		if (overlap <= 0) continue;
+		const put = i === hours.length - 1 ? left : Math.min(left, (rate * overlap) / HOUR_MS);
+		if (put > 0) acc.set(h, (acc.get(h) ?? 0) + put);
+		left -= put;
+		if (left <= 1e-9) break;
 	}
+}
+
+/** The session's charging power, measured from its readings that span at least 15 minutes. */
+function observedKw(intervals: Interval[]): number {
+	let kw = 0;
+	for (const iv of intervals) {
+		const ms = iv.toMs - iv.fromMs;
+		if (ms >= MIN_RATE_INTERVAL_MS && ms <= HOUR_MS + SNAP_MS) kw = Math.max(kw, (iv.kWh * HOUR_MS) / ms);
+	}
+	return kw > 0 ? kw : FALLBACK_KW;
 }
 
 function parseSession(raw: unknown): Session | null {
@@ -55,19 +87,32 @@ function parseSession(raw: unknown): Session | null {
 	const endUtc = parseZaptecTime(String(get(raw, 'endDateTime')));
 	const details = get(raw, 'energyDetails');
 
-	const acc = new Map<IsoUtc, number>();
 	const startMs = Date.parse(startUtc);
+	const endMs = Date.parse(endUtc);
+	const intervals: Interval[] = [];
 	let prevMs = startMs;
+	let detailed = 0;
 	for (const d of Array.isArray(details) ? details : []) {
 		if (!isObj(d)) continue;
 		const tMs = snapToHour(Date.parse(parseZaptecTime(String(get(d, 'timestamp')))));
 		const e = Number(get(d, 'energy'));
-		if (e > 0) spread(Math.max(prevMs, startMs), tMs, e, acc);
+		if (e > 0) {
+			intervals.push({ fromMs: Math.max(prevMs, startMs), toMs: tMs, kWh: e });
+			detailed += e;
+		}
 		prevMs = tMs;
 	}
+	// Energy the readings do not account for (missing details) would otherwise price as 0 kr: place it
+	// before the session end like any other late reading.
+	const missing = energy - detailed;
+	if (missing > 0.01) intervals.push({ fromMs: Math.min(prevMs, endMs), toMs: endMs, kWh: missing });
 
-	// Each hour is rounded to 3 decimals after spreading, so the hour sum may
-	// differ from the session total by rounding (and by Zaptec's own gaps).
+	const kw = observedKw(intervals);
+	const acc = new Map<IsoUtc, number>();
+	for (const iv of intervals) backfill(iv, kw, acc);
+
+	// Each hour is rounded to 3 decimals after placing, so the hour sum may
+	// differ from the session total by rounding.
 	const hours: SessionHour[] = [...acc]
 		.sort(([a], [b]) => (a < b ? -1 : 1))
 		.map(([hourStartUtc, kWh]) => ({ hourStartUtc, kWh: Math.round(kWh * 1000) / 1000 }))

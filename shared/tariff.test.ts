@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { TEST_TARIFF } from './testdata';
-import { exVat, inclVat, isHighLoad, selectTariff } from './tariff';
+import { exVat, inclVat, isHighLoad, isHighLoadHoliday, selectTariff } from './tariff';
 
 describe('selectTariff', () => {
 	const t1 = TEST_TARIFF;
@@ -20,9 +20,28 @@ describe('isHighLoad', () => {
 		['2026-11-03T21:00:00.000Z', false],
 		['2026-11-07T10:00:00.000Z', false],
 		['2026-07-01T10:00:00.000Z', false],
-		['2027-03-29T04:00:00.000Z', true],
+		['2027-03-30T04:00:00.000Z', true],
+		['2027-03-29T04:00:00.000Z', false], // annandag påsk
 	])('%s -> %s', (iso, want) => {
 		expect(isHighLoad(hl, iso)).toBe(want);
+	});
+	it('treats the holidays on the invoice as non-weekdays', () => {
+		// Thu 24 Dec 2026 and Fri 1 Jan 2027, 10:00 local.
+		expect(isHighLoad(hl, '2026-12-24T09:00:00.000Z')).toBe(false);
+		expect(isHighLoad(hl, '2027-01-01T09:00:00.000Z')).toBe(false);
+		// Mon 28 Dec 2026 is an ordinary weekday.
+		expect(isHighLoad(hl, '2026-12-28T09:00:00.000Z')).toBe(true);
+		// Easter 2027 is 28 March: skärtorsdag 25 Mar and långfredag 26 Mar are excluded, Wed 24 Mar is not.
+		expect(isHighLoad(hl, '2027-03-25T09:00:00.000Z')).toBe(false);
+		expect(isHighLoad(hl, '2027-03-26T09:00:00.000Z')).toBe(false);
+		expect(isHighLoad(hl, '2027-03-24T09:00:00.000Z')).toBe(true);
+	});
+	it('knows the Easter-based holidays across years', () => {
+		// Easter 2026: 5 Apr; 2028: 16 Apr.
+		expect(['2026-04-02', '2026-04-03', '2026-04-06'].every(isHighLoadHoliday)).toBe(true);
+		expect(['2028-04-13', '2028-04-14', '2028-04-17'].every(isHighLoadHoliday)).toBe(true);
+		expect(isHighLoadHoliday('2026-04-05')).toBe(false);
+		expect(isHighLoadHoliday('2026-01-06')).toBe(true);
 	});
 	it('applies on weekends when weekdaysOnly is false', () => {
 		expect(isHighLoad({ ...hl, weekdaysOnly: false }, '2026-11-07T10:00:00.000Z')).toBe(true);

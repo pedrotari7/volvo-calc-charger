@@ -104,6 +104,15 @@ describe('parseCarState', () => {
 		expect(c.battery?.value.estFullAt).toBe('2026-11-06T19:30:00.000Z');
 	});
 
+	it('estFullAt counts from the minutes reading, not a newer reading of another field', () => {
+		const e = JSON.parse(JSON.stringify(energy));
+		e.data.chargingStatus.value = 'CHARGING';
+		e.data.chargingStatus.updatedAt = '2026-11-06T18:40:00.000Z';
+		e.data.estimatedChargingTimeToTargetBatteryChargeLevel.value = 90;
+		const c = parseCarState({ vehicles, energy: e }, NOW);
+		expect(c.battery?.value.estFullAt).toBe('2026-11-06T19:30:00.000Z');
+	});
+
 	it('missing electricRange gives rangeKm null, not 0', () => {
 		const e = JSON.parse(JSON.stringify(energy));
 		delete e.data.electricRange;

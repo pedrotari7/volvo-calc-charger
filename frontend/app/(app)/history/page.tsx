@@ -3,7 +3,7 @@
 import * as stylex from '@stylexjs/stylex';
 import { monthTotals } from '@shared/insights';
 import { monthKey } from '@shared/time';
-import { DEFAULT_SETTINGS } from '@shared/types';
+import { withDefaultSettings } from '@shared/types';
 import type { MonthPeaks, PricedSession, Settings } from '@shared/types';
 import { useMemo } from 'react';
 import { MonthSummary } from '../../../components/MonthSummary';
@@ -46,7 +46,7 @@ const HistoryPage = () => {
 	const peaks = useCollection<MonthPeaks>('peaks');
 	const settingsDoc = useDoc<Partial<Settings>>('config/settings');
 
-	const settings = useMemo<Settings>(() => ({ ...DEFAULT_SETTINGS, ...settingsDoc.data }), [settingsDoc.data]);
+	const settings = useMemo<Settings>(() => withDefaultSettings(settingsDoc.data), [settingsDoc.data]);
 	const readings = useMemo(() => odometer.data.map(o => ({ km: o.km, date: o.id })), [odometer.data]);
 
 	const groups = useMemo(() => {

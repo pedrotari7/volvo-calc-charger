@@ -54,8 +54,22 @@ describe('monthTotals', () => {
 		expect(t.saving).toBeNull();
 	});
 
-	it('ignores other months, sorts odometer by date and treats delta <= 0 as null', () => {
+	it('measures from the last reading before the month, so the first day of driving counts', () => {
 		const unordered = [odo[1]!, { km: 900, date: '2026-10-30' }, odo[0]!];
+		expect(monthTotals(s, '2026-11', unordered, null, DEFAULT_SETTINGS).km).toBe(600);
+		// One reading in the month is enough with a baseline.
+		expect(monthTotals(s, '2026-11', [{ km: 900, date: '2026-10-31' }, odo[0]!], null, DEFAULT_SETTINGS).km).toBe(
+			100
+		);
+	});
+
+	it('ignores a baseline more than a week before the month and readings after it', () => {
+		const old = [{ km: 100, date: '2026-10-20' }, odo[0]!, odo[1]!, { km: 9000, date: '2026-12-01' }];
+		expect(monthTotals(s, '2026-11', old, null, DEFAULT_SETTINGS).km).toBe(500);
+	});
+
+	it('sorts odometer by date and treats delta <= 0 as null', () => {
+		const unordered = [odo[1]!, odo[0]!];
 		expect(monthTotals(s, '2026-11', unordered, null, DEFAULT_SETTINGS).km).toBe(500);
 		const same = [odo[0]!, { km: 1000, date: '2026-11-02' }];
 		expect(monthTotals(s, '2026-11', same, null, DEFAULT_SETTINGS).km).toBeNull();

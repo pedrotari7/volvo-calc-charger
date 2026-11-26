@@ -31,7 +31,16 @@ async function plannedFor(s: Session): Promise<PricedSession['planned']> {
 	if (!rec) return null;
 	const t = Date.parse(s.startUtc);
 	if (t < Date.parse(rec.start) - PLAN_LEAD_MS || t > Date.parse(rec.end)) return null;
-	return { kw: rec.kw, start: rec.start, end: rec.end, energyCost: rec.energyCost, cost: rec.cost };
+	const planned: NonNullable<PricedSession['planned']> = {
+		kw: rec.kw,
+		start: rec.start,
+		end: rec.end,
+		energyCost: rec.energyCost,
+		cost: rec.cost,
+	};
+	// The energy the plan priced, so the session can be compared per kWh rather than in absolute kr.
+	if (typeof plan.neededKwh === 'number' && plan.neededKwh > 0) planned.kWh = plan.neededKwh;
+	return planned;
 }
 
 export async function runPollZaptec(nowUtc: IsoUtc, deps: PollZaptecDeps): Promise<{ newSessions: string[] }> {

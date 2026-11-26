@@ -32,7 +32,11 @@ const styles = stylex.create({
 
 export const SessionRow = ({ session: s }: { session: PricedSession }) => {
 	const total = s.status === 'priced' && s.cost ? s.cost.total : null;
-	const delta = total !== null && s.planned ? total - s.planned.energyCost : null;
+	// The plan priced its own kWh; scale it to the energy actually charged so the delta reflects the price
+	// paid, not charging more or less than planned. Sessions stored without the planned kWh show no delta.
+	const plannedKwh = s.planned?.kWh ?? 0;
+	const delta =
+		total !== null && s.planned && plannedKwh > 0 ? total - (s.planned.energyCost * s.kWh) / plannedKwh : null;
 
 	return (
 		<Link href={`/history/${s.id}`} {...stylex.props(list.cell, list.pressable)}>

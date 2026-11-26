@@ -123,7 +123,7 @@ Storing every tariff value excluding VAT, with one VAT rate, avoids mixing incl.
 
 ### 6.1 Hour price
 
-Session hours come from Zaptec `energyDetails`: each entry's energy was delivered in the interval from the previous entry's timestamp (or the session start) to its own timestamp, and is **spread across the UTC clock hours that interval overlaps, in proportion to the overlap**. For the 2026-11-02 session this gives 9.930 kWh → 23:00 UTC hour and 2.011 kWh → 00:00 UTC hour (the sub-second spill-over is rounded away at 3 decimals). An interval spanning several hours, which happens when details are sparse, is spread evenly instead of landing in one hour and inflating the peak. Hours that round to 0 kWh are dropped.
+Session hours come from Zaptec `energyDetails`: each entry's energy was delivered in the interval from the previous entry's timestamp (or the session start) to its own timestamp, and is **spread across the UTC clock hours that interval overlaps, in proportion to the overlap**. For the 2026-11-02 session this gives 9.930 kWh → 23:00 UTC hour and 2.011 kWh → 00:00 UTC hour (the sub-second spill-over is rounded away at 3 decimals). Zaptec writes a reading only for hours with energy, so an interval spanning several hours (the car waiting on its own charge timer) delivered its energy just before the reading: it is filled backwards from the reading's timestamp at no more than the session's observed charging power (from readings spanning 15–60 min, else 11 kW), so it neither lands in idle evening hours nor inflates the peak beyond a real hour. Energy the details do not account for (missing or short details) is placed the same way before the session end, so a session is never priced at 0 kr. Hours that round to 0 kWh are dropped.
 
 For a UTC hour `h`:
 
@@ -134,7 +134,7 @@ gridRate(h)    = (isHighLoad(h) ? transferHigh : transferLow) + energyTaxPerKwh
 hourCost(h)    = kWh(h) × (energyRate(h) + gridRate(h)) × (1 + vatRate)
 ```
 
-`isHighLoad` is evaluated in Europe/Stockholm local time. The tariff is the one with the latest `effectiveFrom` ≤ the hour's local date.
+`isHighLoad` is evaluated in Europe/Stockholm local time. With `weekdaysOnly`, the holidays Nacka does not count as weekdays (nyårsdagen, trettondag jul, skärtorsdag, långfredag, annandag påsk, julafton, juldagen, annandag jul, nyårsafton) are low load. The tariff is the one with the latest `effectiveFrom` ≤ the hour's local date.
 
 ### 6.2 Session cost
 

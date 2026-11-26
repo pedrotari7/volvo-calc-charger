@@ -13,6 +13,24 @@ export interface MonthTotals {
 	pendingCount: number;
 }
 
+const BASELINE_DAYS = 7;
+
+/**
+ * Km driven in `month`: the month's last reading minus the last reading before the month (each date's doc
+ * holds that day's final reading, so the month's own first reading would miss the first day's driving).
+ * A baseline older than a week is ignored (a long gap in readings), falling back to the month's first reading.
+ */
+function odometerDelta(odometer: { km: number; date: string }[], month: string): number {
+	const sorted = [...odometer].sort((a, b) => a.date.localeCompare(b.date));
+	const inMonth = sorted.filter(o => o.date.startsWith(month));
+	if (inMonth.length === 0) return 0;
+	const [y, m] = month.split('-').map(Number) as [number, number];
+	const earliest = new Date(Date.UTC(y, m - 1, 1 - BASELINE_DAYS)).toISOString().slice(0, 10);
+	const before = sorted.filter(o => o.date < `${month}-01` && o.date >= earliest).pop();
+	const from = before ?? (inMonth.length >= 2 ? inMonth[0]! : null);
+	return from ? inMonth[inMonth.length - 1]!.km - from.km : 0;
+}
+
 export function monthTotals(
 	sessions: PricedSession[],
 	month: string,
@@ -26,8 +44,7 @@ export function monthTotals(
 	const cost = priced.reduce((a, s) => a + (s.cost?.total ?? 0), 0) + (peakFee ?? 0);
 	const pricedKwh = priced.reduce((a, s) => a + s.kWh, 0);
 
-	const readings = odometer.filter(o => o.date.startsWith(month)).sort((a, b) => a.date.localeCompare(b.date));
-	const delta = readings.length >= 2 ? readings[readings.length - 1]!.km - readings[0]!.km : 0;
+	const delta = odometerDelta(odometer, month);
 	const km = delta > 0 ? delta : null;
 	const petrolCost = km === null ? null : (km / 100) * settings.petrol.litresPer100km * settings.petrol.krPerLitre;
 

@@ -101,7 +101,7 @@ describe('runPollZaptec', () => {
 			peakIncrease: 2.25,
 			cost: 12.5,
 		};
-		await db.doc('plans/2026-11-02').set({ recommendation: rec });
+		await db.doc('plans/2026-11-02').set({ recommendation: rec, neededKwh: 12 });
 		await db.doc('plans/2026-11-03').set({ recommendation: { ...rec, cost: 99, energyCost: 99 } });
 		await runPollZaptec(NOW, { client: stubClient() });
 		const id = '5e1f0c7a-3b92-4d6e-a8f4-1c7d92b0e3a5';
@@ -111,6 +111,7 @@ describe('runPollZaptec', () => {
 			end: rec.end,
 			energyCost: 10.25,
 			cost: 12.5,
+			kWh: 12,
 		});
 		const other = '0b8d2e64-91a7-4f3c-b5e0-7a4c1d83f926';
 		expect((await db.doc(`sessions/${other}`).get()).data()!.planned).toBeNull();

@@ -1,4 +1,4 @@
-import { DEFAULT_SETTINGS } from './types';
+import { DEFAULT_SETTINGS, withDefaultSettings } from './types';
 
 describe('DEFAULT_SETTINGS', () => {
 	it('matches the spec values', () => {
@@ -12,5 +12,15 @@ describe('DEFAULT_SETTINGS', () => {
 			petrol: { litresPer100km: 7.5, krPerLitre: 18 },
 			notifications: { plugIn: true, sessionDone: true, leftOpen: true },
 		});
+	});
+});
+
+describe('withDefaultSettings', () => {
+	it('fills nested groups field by field', () => {
+		const s = withDefaultSettings({ targetPercent: 90, petrol: { krPerLitre: 20 } as never });
+		expect(s.targetPercent).toBe(90);
+		expect(s.petrol).toEqual({ litresPer100km: 7.5, krPerLitre: 20 });
+		expect(s.notifications).toEqual(DEFAULT_SETTINGS.notifications);
+		expect(withDefaultSettings(null)).toEqual(DEFAULT_SETTINGS);
 	});
 });

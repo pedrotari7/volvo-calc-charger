@@ -32,11 +32,24 @@ describe('SessionRow', () => {
 	});
 
 	it('shows the signed delta against the planned energy cost, not the cost incl. peak increase', () => {
-		const planned = { kw: 3.7, start: base.startUtc, end: base.endUtc, energyCost: 17.46, cost: 25 };
+		const planned = { kw: 3.7, start: base.startUtc, end: base.endUtc, energyCost: 17.46, cost: 25, kWh: 12 };
 		const { rerender } = render(<SessionRow session={{ ...base, planned }} />);
 		expect(screen.getByText('+1,20 kr vs plan')).toBeInTheDocument();
 		rerender(<SessionRow session={{ ...base, planned: { ...planned, energyCost: 20, cost: 22 } }} />);
 		expect(screen.getByText('-1,34 kr vs plan')).toBeInTheDocument();
+	});
+
+	it('compares at the planned price per kWh when a different amount was charged', () => {
+		// Plan: 24 kWh for 34.92 kr = 1.455 kr/kWh; 12 kWh at that price is 17.46 kr.
+		const planned = { kw: 3.7, start: base.startUtc, end: base.endUtc, energyCost: 34.92, cost: 40, kWh: 24 };
+		render(<SessionRow session={{ ...base, planned }} />);
+		expect(screen.getByText('+1,20 kr vs plan')).toBeInTheDocument();
+	});
+
+	it('omits the delta for a plan stored without its kWh', () => {
+		const planned = { kw: 3.7, start: base.startUtc, end: base.endUtc, energyCost: 17, cost: 17 };
+		render(<SessionRow session={{ ...base, planned }} />);
+		expect(screen.queryByText(/vs plan/)).toBeNull();
 	});
 
 	it('omits the delta when pending', () => {

@@ -71,7 +71,8 @@ export interface PricedSession extends Session {
 	status: 'priced' | 'pending';
 	cost: CostBreakdown | null;
 	peakShare: number;
-	planned: Pick<PlanCandidate, 'kw' | 'start' | 'end' | 'energyCost' | 'cost'> | null;
+	/** The plan this session followed; `kWh` is the energy the plan priced (absent on sessions stored before it was added). */
+	planned: (Pick<PlanCandidate, 'kw' | 'start' | 'end' | 'energyCost' | 'cost'> & { kWh?: number }) | null;
 }
 
 export interface PeakHour {
@@ -140,3 +141,13 @@ export const DEFAULT_SETTINGS: Settings = {
 	petrol: { litresPer100km: 7.5, krPerLitre: 18 },
 	notifications: { plugIn: true, sessionDone: true, leftOpen: true },
 };
+
+/** Stored settings over the defaults, nested groups included (a partial `petrol` would otherwise yield NaN). */
+export function withDefaultSettings(stored: Partial<Settings> | null | undefined): Settings {
+	return {
+		...DEFAULT_SETTINGS,
+		...stored,
+		petrol: { ...DEFAULT_SETTINGS.petrol, ...stored?.petrol },
+		notifications: { ...DEFAULT_SETTINGS.notifications, ...stored?.notifications },
+	};
+}

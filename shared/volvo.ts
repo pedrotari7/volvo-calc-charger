@@ -101,10 +101,11 @@ function parseBattery(energy: unknown, now: IsoUtc): CarState['battery'] {
 	const mins = entry(d.estimatedChargingTimeToTargetBatteryChargeLevel);
 	const chargingStatus = typeof status?.value === 'string' ? status.value : 'UNKNOWN';
 	const m = num(mins);
-	const newest = timed(null, [level, range, status, mins], now).at;
+	// Minutes remaining count from when that reading was taken, not from the newest of the other fields.
+	const minsAt = mins?.ts ?? Date.parse(timed(null, [level, range, status], now).at);
 	const estFullAt =
 		chargingStatus === 'CHARGING' && m !== null && m > 0
-			? (new Date(Date.parse(newest) + m * 60_000).toISOString() as IsoUtc)
+			? (new Date(minsAt + m * 60_000).toISOString() as IsoUtc)
 			: null;
 	return timed({ percent, rangeKm: num(range), chargingStatus, estFullAt }, [level, range, status, mins], now);
 }
