@@ -3,7 +3,7 @@ import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { leftOpenIssues, leftOpenMessage, reconnectDue, shouldSendLeftOpen } from '../../shared/alerts';
 import { localDateOf } from '../../shared/time';
 import type { IsoUtc } from '../../shared/types';
-import { parseCarState } from '../../shared/volvo';
+import { parseCarProfile, parseCarState } from '../../shared/volvo';
 import { db } from './lib/firebase';
 import { sendPush } from './lib/push';
 import { VOLVO_API_KEY, VOLVO_CLIENT_ID, VOLVO_CLIENT_SECRET } from './lib/secrets';
@@ -27,6 +27,31 @@ const reconnectPush = (kind: 'failed' | 'due', grantStartedAt: string) =>
 		url: '/settings',
 	});
 
+const PROFILE_MAX_AGE_MS = 24 * 3_600_000;
+
+/**
+ * Refreshes car/profile (model, paint, picture) when it is missing or a day old. Best effort: the car
+ * poll never fails because of it, and a failed fetch keeps the previous profile.
+ */
+async function refreshProfile(client: VolvoClient, vin: string, nowUtc: IsoUtc): Promise<void> {
+	try {
+		const ref = db.doc('car/profile');
+		const fetchedAt = (await ref.get()).data()?.fetchedAt;
+		if (typeof fetchedAt === 'string' && Date.parse(nowUtc) - Date.parse(fetchedAt) < PROFILE_MAX_AGE_MS) return;
+		const details = await client.details(vin);
+		if (details === undefined) return;
+		const profile = parseCarProfile(details, nowUtc);
+		if (!profile) {
+			const keys = details && typeof details === 'object' ? Object.keys(details) : [typeof details];
+			logger.warn('pollCar: vehicle details had no profile fields', { keys });
+			return;
+		}
+		await ref.set(profile);
+	} catch (e) {
+		logger.warn('pollCar: could not refresh car/profile', { error: e instanceof Error ? e.name : 'unknown' });
+	}
+}
+
 export async function runPollCar(nowUtc: IsoUtc, deps: PollCarDeps): Promise<void> {
 	const { client } = deps;
 	const volvo = (await db.doc('private/volvo').get()).data();
@@ -36,14 +61,16 @@ export async function runPollCar(nowUtc: IsoUtc, deps: PollCarDeps): Promise<voi
 	if (volvo.lastRefreshError && !(Date.parse(volvo.accessExpiresAt ?? '') > Date.parse(nowUtc))) return;
 
 	let raw;
+	let vin: string;
 	try {
 		const vehicles = await client.vehicles();
 		const list = (vehicles as { data?: Array<{ vin?: unknown }> } | undefined)?.data;
-		const vin = list?.[0]?.vin;
-		if (typeof vin !== 'string') {
+		const first = list?.[0]?.vin;
+		if (typeof first !== 'string') {
 			logger.warn('pollCar: no vehicle returned');
 			return;
 		}
+		vin = first;
 		const [doors, windows, odometer, tyres, warnings, diagnostics, statistics, energy, location] =
 			await Promise.all([
 				client.section(vin, 'doors'),
@@ -77,6 +104,7 @@ export async function runPollCar(nowUtc: IsoUtc, deps: PollCarDeps): Promise<voi
 		logger.warn('pollCar: energy answered but no battery level parsed', { keys });
 	}
 	await db.doc('car/state').set(car);
+	await refreshProfile(client, vin, nowUtc);
 	if (car.odometerKm) {
 		await db
 			.doc(`odometer/${localDateOf(car.odometerKm.at)}`)

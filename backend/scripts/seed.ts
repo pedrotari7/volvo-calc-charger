@@ -10,7 +10,7 @@ import { TEST_TARIFF } from '../../shared/testdata';
 import { eveningDateOf, localDateOf, monthKey } from '../../shared/time';
 import type { MonthPeaks, PriceDay, Settings } from '../../shared/types';
 import { DEFAULT_SETTINGS } from '../../shared/types';
-import { parseCarState } from '../../shared/volvo';
+import { parseCarProfile, parseCarState } from '../../shared/volvo';
 import { parseZaptecSessions } from '../../shared/zaptec';
 import { db } from '../src/lib/firebase';
 
@@ -112,6 +112,9 @@ async function main(): Promise<void> {
 	};
 	const car = parseCarState(raw, now);
 	await db.doc('car/state').set(car);
+	// The fixture's picture points at an unreachable host, so the seeded profile has none.
+	const profile = parseCarProfile(readJson('volvo', 'details.json'), now);
+	if (profile) await db.doc('car/profile').set({ ...profile, imageUrl: null });
 	if (car.odometerKm) {
 		await db
 			.doc(`odometer/${localDateOf(car.odometerKm.at)}`)

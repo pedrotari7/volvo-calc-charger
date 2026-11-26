@@ -14,6 +14,7 @@ const asStranger = () =>
 
 const READABLE = [
 	'car/state',
+	'car/profile',
 	'odometer/2026-11-03',
 	'sessions/a',
 	'prices/2026-11-03',
@@ -30,6 +31,7 @@ const CLIENT_WRITABLE = ['config/settings', 'tariffs/t1', 'config/allowlist', 'u
 const FUNCTION_OWNED = [
 	'sessions/a',
 	'car/state',
+	'car/profile',
 	'odometer/2026-11-03',
 	'plans/x',
 	'peaks/x',

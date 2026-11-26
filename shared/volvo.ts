@@ -1,4 +1,4 @@
-import type { CarState, IsoUtc, Timed } from './types';
+import type { CarProfile, CarState, IsoUtc, Timed } from './types';
 
 type Obj = Record<string, unknown>;
 interface Entry {
@@ -188,6 +188,43 @@ function parseTrips(statistics: unknown, now: IsoUtc): CarState['trips'] {
 		}
 	}
 	return used.length ? timed(out, used, now) : null;
+}
+
+const str = (x: unknown): string | null => (typeof x === 'string' && x.trim() ? x.trim() : null);
+
+/**
+ * Volvo's render URLs carry size and background as query parameters on some responses. When they are there,
+ * ask for a transparent background (the card is dark) and a phone-sized width; otherwise leave the URL alone.
+ */
+export function tuneCarImageUrl(raw: string): string | null {
+	let url: URL;
+	try {
+		url = new URL(raw);
+	} catch {
+		return null;
+	}
+	if (url.protocol !== 'https:') return null;
+	if (url.searchParams.has('bg')) url.searchParams.set('bg', '00000000');
+	if (url.searchParams.has('w')) url.searchParams.set('w', '1000');
+	return url.toString();
+}
+
+/** The car's model, year, paint and picture from GET /connected-vehicle/v2/vehicles/{vin}; null if none of it is there. */
+export function parseCarProfile(details: unknown, nowUtc: IsoUtc): CarProfile | null {
+	const d = dataOf(details);
+	if (!d) return null;
+	const descriptions = isObj(d.descriptions) ? d.descriptions : {};
+	const images = isObj(d.images) ? d.images : {};
+	const image = str(images.exteriorImageUrl);
+	const profile: CarProfile = {
+		model: str(descriptions.model),
+		modelYear: typeof d.modelYear === 'number' && Number.isFinite(d.modelYear) ? d.modelYear : null,
+		colour: str(d.externalColour),
+		imageUrl: image ? tuneCarImageUrl(image) : null,
+		fetchedAt: nowUtc,
+	};
+	const { fetchedAt: _, ...rest } = profile;
+	return Object.values(rest).some(v => v !== null) ? profile : null;
 }
 
 export function parseCarState(

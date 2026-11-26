@@ -1,9 +1,9 @@
 'use client';
 
 import * as stylex from '@stylexjs/stylex';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { formatAgo, formatKr, formatKwh } from '@shared/format';
-import type { CarState, ChargerState } from '@shared/types';
+import type { CarProfile, CarState, ChargerState } from '@shared/types';
 import { celebrateOnce } from '../lib/confetti';
 import { formatLocalTime } from '../lib/localTime';
 import { colors, fonts, tint } from '../app/tokens.stylex';
@@ -19,6 +19,16 @@ const pulse = stylex.keyframes({
 const drift = stylex.keyframes({
 	'0%, 100%': { backgroundPosition: '100% 0%' },
 	'50%': { backgroundPosition: '60% 40%' },
+});
+
+const breathe = stylex.keyframes({
+	'0%, 100%': { opacity: 0.45, transform: 'scaleX(0.9)' },
+	'50%': { opacity: 1, transform: 'scaleX(1.05)' },
+});
+
+const arrive = stylex.keyframes({
+	from: { opacity: 0, transform: 'translateX(-24px) scale(0.97)' },
+	to: { opacity: 1, transform: 'none' },
 });
 
 const styles = stylex.create({
@@ -44,6 +54,46 @@ const styles = stylex.create({
 	ready: {
 		backgroundImage: 'radial-gradient(120% 90% at 0% 0%, rgb(48 209 88 / 0.18), transparent 60%)',
 	},
+	hero: { position: 'relative', marginInline: -8, marginTop: -4 },
+	// The car stands on a soft pool of light: neutral parked, green and breathing while charging.
+	floor: {
+		position: 'absolute',
+		left: '12%',
+		right: '12%',
+		bottom: '4%',
+		height: '18%',
+		borderRadius: '50%',
+		backgroundImage: 'radial-gradient(closest-side, rgb(255 255 255 / 0.16), transparent)',
+		filter: 'blur(6px)',
+	},
+	floorCharging: {
+		backgroundImage: 'radial-gradient(closest-side, rgb(48 209 88 / 0.65), transparent)',
+		animationName: breathe,
+		animationDuration: '2.8s',
+		animationTimingFunction: 'ease-in-out',
+		animationIterationCount: 'infinite',
+	},
+	image: {
+		position: 'relative',
+		display: 'block',
+		width: '100%',
+		aspectRatio: '16 / 8',
+		objectFit: 'contain',
+		animationName: arrive,
+		animationDuration: '700ms',
+		animationTimingFunction: 'cubic-bezier(0.32, 0.72, 0, 1)',
+	},
+	name: {
+		display: 'flex',
+		alignItems: 'baseline',
+		gap: 8,
+		fontSize: 13,
+		fontWeight: 600,
+		letterSpacing: '0.04em',
+		textTransform: 'uppercase',
+		color: colors.muted,
+	},
+	nameModel: { color: colors.ink, fontSize: 15, letterSpacing: '0.08em' },
 	top: { display: 'flex', alignItems: 'center', gap: 20 },
 	facts: { display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 8, minWidth: 0 },
 	range: {
@@ -103,7 +153,42 @@ interface Props {
 	rateNow: number | null;
 	/** Charge target %, marked on the battery ring. */
 	target?: number;
+	/** Model, paint and Volvo's picture of the car. */
+	profile?: CarProfile | null;
 }
+
+/** Volvo's render of the car standing on a pool of light; nothing at all if there is no picture or it fails. */
+const CarHero = ({ profile, charging }: { profile: CarProfile | null; charging: boolean }) => {
+	const [failed, setFailed] = useState(false);
+	const src = profile?.imageUrl ?? null;
+	useEffect(() => setFailed(false), [src]);
+	const name = [profile?.colour, profile?.modelYear].filter(Boolean).join(' · ');
+
+	return (
+		<>
+			{src && !failed ? (
+				<div {...stylex.props(styles.hero)}>
+					<div aria-hidden {...stylex.props(styles.floor, charging && styles.floorCharging)} />
+					{/* eslint-disable-next-line @next/next/no-img-element -- remote Volvo render, sized by the card */}
+					<img
+						src={src}
+						alt={profile?.model ? `Volvo ${profile.model}` : 'The car'}
+						referrerPolicy='no-referrer'
+						decoding='async'
+						onError={() => setFailed(true)}
+						{...stylex.props(styles.image)}
+					/>
+				</div>
+			) : null}
+			{profile?.model ? (
+				<p {...stylex.props(styles.name)}>
+					<span {...stylex.props(styles.nameModel)}>Volvo {profile.model}</span>
+					{name ? <span>{name}</span> : null}
+				</p>
+			) : null}
+		</>
+	);
+};
 
 const ChargerPill = ({ charger, ready }: { charger: ChargerState | null; ready: boolean }) => {
 	if (ready && !charger?.charging)
@@ -132,7 +217,7 @@ const ChargerPill = ({ charger, ready }: { charger: ChargerState | null; ready: 
 	return <span {...stylex.props(styles.pill)}>Not plugged in</span>;
 };
 
-export const CarSummary = ({ car, charger, now, rateNow, target }: Props) => {
+export const CarSummary = ({ car, charger, now, rateNow, target, profile = null }: Props) => {
 	const battery = car?.battery ?? null;
 	const locked = car?.locked ?? null;
 	const range = battery?.value.rangeKm;
@@ -140,22 +225,24 @@ export const CarSummary = ({ car, charger, now, rateNow, target }: Props) => {
 	const charging = charger?.charging === true;
 	const percent = battery?.value.percent ?? null;
 	const ready = percent !== null && target !== undefined && percent >= target;
-	const card = useRef<HTMLElement>(null);
+	const ringRow = useRef<HTMLDivElement>(null);
 
 	// Reaching the target is worth a little party, once a day.
 	useEffect(() => {
 		if (!ready) return;
-		const box = card.current?.getBoundingClientRect();
-		celebrateOnce(`ready:${now.slice(0, 10)}`, box ? box.left + 82 : undefined, box ? box.top + 86 : undefined);
+		// From the middle of the battery ring (132px wide, first in its row).
+		const box = ringRow.current?.getBoundingClientRect();
+		celebrateOnce(
+			`ready:${now.slice(0, 10)}`,
+			box ? box.left + 66 : undefined,
+			box ? box.top + box.height / 2 : undefined
+		);
 	}, [ready, now]);
 
 	return (
-		<section
-			ref={card}
-			aria-label='Car'
-			{...stylex.props(styles.card, ready && styles.ready, charging && styles.charging)}
-		>
-			<div {...stylex.props(styles.top)}>
+		<section aria-label='Car' {...stylex.props(styles.card, ready && styles.ready, charging && styles.charging)}>
+			<CarHero profile={profile} charging={charging} />
+			<div ref={ringRow} {...stylex.props(styles.top)}>
 				<BatteryRing percent={percent} target={target} charging={charging} />
 				<div {...stylex.props(styles.facts)}>
 					<ChargerPill charger={charger} ready={ready} />

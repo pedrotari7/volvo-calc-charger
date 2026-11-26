@@ -131,6 +131,17 @@ export interface CarState {
 	updatedAt: IsoUtc;
 }
 
+/** What the car is, from Volvo's vehicle details. Changes rarely; refreshed about once a day. */
+export interface CarProfile {
+	model: string | null;
+	modelYear: number | null;
+	/** Volvo's paint name, e.g. "Vapour Grey". */
+	colour: string | null;
+	/** Volvo's render of this exact car (paint, wheels), https only. */
+	imageUrl: string | null;
+	fetchedAt: IsoUtc;
+}
+
 export const DEFAULT_SETTINGS: Settings = {
 	targetPercent: 80,
 	readyBy: '07:00',

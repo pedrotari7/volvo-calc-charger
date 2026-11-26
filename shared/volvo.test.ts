@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { IsoUtc } from './types';
-import { parseCarState } from './volvo';
+import { parseCarProfile, parseCarState, tuneCarImageUrl } from './volvo';
+import details from '../backend/test/fixtures/volvo/details.json';
 import vehicles from '../backend/test/fixtures/volvo/vehicles.json';
 import doors from '../backend/test/fixtures/volvo/doors.json';
 import windows from '../backend/test/fixtures/volvo/windows.json';
@@ -141,5 +142,38 @@ describe('parseCarState', () => {
 		w.data.brakeLightLeftWarning.value = 'FAILURE';
 		const c = parseCarState({ vehicles, warnings: w }, NOW);
 		expect(c.warnings?.value).toEqual(['brakeLightLeftWarning']);
+	});
+});
+
+describe('parseCarProfile', () => {
+	it('reads model, year, paint and picture from vehicle details', () => {
+		expect(parseCarProfile(details, NOW)).toEqual({
+			model: 'XC40',
+			modelYear: 2023,
+			colour: 'Fjord Blue',
+			imageUrl: 'https://example.invalid/exterior.png',
+			fetchedAt: NOW,
+		});
+	});
+
+	it('drops a picture that is not https, and returns null when nothing is known', () => {
+		const p = parseCarProfile(
+			{ data: { externalColour: 'Vapour Grey', images: { exteriorImageUrl: 'http://x/a.png' } } },
+			NOW
+		);
+		expect(p?.colour).toBe('Vapour Grey');
+		expect(p?.imageUrl).toBeNull();
+		expect(parseCarProfile({ data: {} }, NOW)).toBeNull();
+		expect(parseCarProfile(undefined, NOW)).toBeNull();
+	});
+});
+
+describe('tuneCarImageUrl', () => {
+	it('asks for a transparent, phone-sized render only when the URL already has those parameters', () => {
+		expect(tuneCarImageUrl('https://cas.example/img.png?angle=1&bg=ffffff&w=1920')).toBe(
+			'https://cas.example/img.png?angle=1&bg=00000000&w=1000'
+		);
+		expect(tuneCarImageUrl('https://cas.example/img.png')).toBe('https://cas.example/img.png');
+		expect(tuneCarImageUrl('not a url')).toBeNull();
 	});
 });

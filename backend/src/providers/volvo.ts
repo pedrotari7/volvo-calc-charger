@@ -11,6 +11,7 @@ const REQUEST_TIMEOUT_MS = 15_000;
 
 export const vehiclePaths = {
 	vehicles: () => '/connected-vehicle/v2/vehicles',
+	details: (vin: string) => `/connected-vehicle/v2/vehicles/${vin}`,
 	section: (vin: string, name: string) => `/connected-vehicle/v2/vehicles/${vin}/${name}`,
 	energy: (vin: string) => `/energy/v2/vehicles/${vin}/state`,
 	location: (vin: string) => `/location/v1/vehicles/${vin}/location`,
@@ -26,6 +27,7 @@ const COMMAND_OK = new Set(['COMPLETED', 'DELIVERED']);
 
 export interface VolvoClient {
 	vehicles(): Promise<unknown>;
+	details(vin: string): Promise<unknown>;
 	section(vin: string, name: SectionName): Promise<unknown>;
 	energy(vin: string): Promise<unknown>;
 	location(vin: string): Promise<unknown>;
@@ -74,6 +76,7 @@ export function createVolvoClient(
 
 	return {
 		vehicles: () => read('vehicles', vehiclePaths.vehicles()),
+		details: vin => read('details', vehiclePaths.details(vin)),
 		section: (vin, name) => read(name, vehiclePaths.section(vin, name)),
 		energy: vin => read('energy', vehiclePaths.energy(vin), ENERGY_ACCEPT),
 		location: vin => read('location', vehiclePaths.location(vin)),

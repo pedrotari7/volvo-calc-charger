@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { CarState, ChargerState } from '@shared/types';
 import { CarSummary } from './CarSummary';
@@ -42,5 +42,23 @@ describe('CarSummary', () => {
 		);
 		expect(screen.getByText('Ready to roll')).toBeInTheDocument();
 		expect(screen.queryByText('Plugged in')).toBeNull();
+	});
+
+	it("shows Volvo's picture of the car with its model and paint, and drops a picture that fails", () => {
+		const profile = {
+			model: 'XC40',
+			modelYear: 2023,
+			colour: 'Vapour Grey',
+			imageUrl: 'https://cas.example/xc40.png',
+			fetchedAt: NOW,
+		};
+		render(<CarSummary car={car(310)} charger={charger} now={NOW} rateNow={null} profile={profile} />);
+		expect(screen.getByText('Volvo XC40')).toBeInTheDocument();
+		expect(screen.getByText('Vapour Grey · 2023')).toBeInTheDocument();
+		const img = screen.getByRole('img', { name: 'Volvo XC40' });
+		expect(img).toHaveAttribute('src', 'https://cas.example/xc40.png');
+		fireEvent.error(img);
+		expect(screen.queryByRole('img', { name: 'Volvo XC40' })).toBeNull();
+		expect(screen.getByText('Volvo XC40')).toBeInTheDocument();
 	});
 });

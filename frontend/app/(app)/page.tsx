@@ -3,7 +3,7 @@
 import * as stylex from '@stylexjs/stylex';
 import { allInRateInclVat } from '@shared/pricing';
 import { addHours, eveningDateOf, floorHourUtc, localParts, monthKey } from '@shared/time';
-import type { CarState, ChargerState, MonthPeaks, PriceDay, Plan, Settings, Tariff } from '@shared/types';
+import type { CarProfile, CarState, ChargerState, MonthPeaks, PriceDay, Plan, Settings, Tariff } from '@shared/types';
 import { withDefaultSettings } from '@shared/types';
 import { documentId, where } from 'firebase/firestore';
 import { useMemo, useState } from 'react';
@@ -31,6 +31,7 @@ const HomePage = () => {
 	const eveningDate = eveningDateOf(now);
 
 	const car = useDoc<CarState>('car/state');
+	const profile = useDoc<CarProfile>('car/profile');
 	const charger = useDoc<ChargerState>('charger/state');
 	const plan = useDoc<Plan>(`plans/${eveningDate}`);
 	const zaptec = useDoc<{ lastOkAt?: string }>('status/zaptec');
@@ -71,6 +72,7 @@ const HomePage = () => {
 						now={now}
 						rateNow={rateNow}
 						target={settings.targetPercent}
+						profile={profile.data}
 					/>
 				)}
 				{plan.error ? (

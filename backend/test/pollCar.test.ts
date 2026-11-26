@@ -29,6 +29,7 @@ function stubClient(over: Overrides = {}): VolvoClient {
 	};
 	return {
 		vehicles: vi.fn(async () => fx('vehicles')),
+		details: vi.fn(async () => fx('details')),
 		section: vi.fn(async (_vin: string, name: string) => sections[name]),
 		energy: vi.fn(async () => fx('energy-state')),
 		location: vi.fn(async () => fx('location')),
@@ -55,6 +56,37 @@ beforeEach(async () => {
 });
 
 describe('runPollCar', () => {
+	it('stores the car profile, and fetches it again only once it is a day old', async () => {
+		const client = stubClient();
+		await runPollCar(NOON, { client });
+		const profile = (await db.doc('car/profile').get()).data();
+		expect(profile).toMatchObject({ model: 'XC40', colour: 'Fjord Blue', modelYear: 2023, fetchedAt: NOON });
+		expect(JSON.stringify(profile)).not.toContain(FULL_VIN);
+
+		await runPollCar('2026-11-06T12:00:00.000Z', { client });
+		expect(client.details).toHaveBeenCalledTimes(1);
+		await runPollCar('2026-11-07T11:30:00.000Z', { client });
+		expect(client.details).toHaveBeenCalledTimes(2);
+	});
+
+	it('keeps the car poll and the old profile when vehicle details fail', async () => {
+		await db.doc('car/profile').set({
+			model: 'XC40',
+			modelYear: 2023,
+			colour: 'Vapour Grey',
+			imageUrl: null,
+			fetchedAt: '2026-11-01T00:00:00.000Z',
+		});
+		const client = stubClient({
+			details: vi.fn(async () => {
+				throw new Error('boom');
+			}),
+		});
+		await runPollCar(NOON, { client });
+		expect((await db.doc('car/state').get()).data()?.battery.value.percent).toBe(62);
+		expect((await db.doc('car/profile').get()).data()?.colour).toBe('Vapour Grey');
+	});
+
 	it('writes car/state with vinLast4 only and the odometer by local date', async () => {
 		await runPollCar(NOON, { client: stubClient() });
 		const snap = await db.doc('car/state').get();
