@@ -113,6 +113,21 @@ describe('parseCarState', () => {
 		expect(c.battery?.value.estFullAt).toBe('2026-11-06T19:30:00.000Z');
 	});
 
+	it('reads Energy v2 fields at the top level, without a data wrapper', () => {
+		const { data, ...rest } = JSON.parse(JSON.stringify(energy));
+		const c = parseCarState({ vehicles, energy: { ...rest, ...data } }, NOW);
+		expect(c.battery?.value).toEqual({ percent: 62, rangeKm: 231, chargingStatus: 'IDLE', estFullAt: null });
+		expect(c.battery?.at).toBe('2026-11-06T18:00:00.000Z');
+	});
+
+	it('an errored battery field (no value) gives battery null', () => {
+		const c = parseCarState(
+			{ vehicles, energy: { batteryChargeLevel: { status: 'ERROR', code: 'NOT_SUPPORTED', message: 'x' } } },
+			NOW
+		);
+		expect(c.battery).toBeNull();
+	});
+
 	it('missing electricRange gives rangeKm null, not 0', () => {
 		const e = JSON.parse(JSON.stringify(energy));
 		delete e.data.electricRange;

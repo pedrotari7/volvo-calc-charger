@@ -43,6 +43,14 @@ describe('MonthSummary', () => {
 		expect(screen.getByText('100 öre')).toBeInTheDocument();
 	});
 
+	it('marks km figures estimated from the car consumption with ≈', () => {
+		// 10 kWh × 0.9 / 18 kWh per 100 km = 50 km: 20 kr per 100 km, petrol 67,50 kr.
+		const t = monthTotals([session('a')], '2026-11', odo, null, DEFAULT_SETTINGS, 18);
+		render(<MonthSummary month='2026-11' totals={t} final={false} />);
+		expect(screen.getByText('≈ 20,00 kr')).toBeInTheDocument();
+		expect(screen.getByText('≈ 57,50 kr')).toBeInTheDocument();
+	});
+
 	it('marks the peak fee as an estimate unless final', () => {
 		const peaks = { month: '2026-11', top3: [], estimatedFee: 5, final: false };
 		const { rerender } = render(

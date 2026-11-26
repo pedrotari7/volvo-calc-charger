@@ -4,7 +4,7 @@ import * as stylex from '@stylexjs/stylex';
 import { monthTotals } from '@shared/insights';
 import { localDateOf, monthKey } from '@shared/time';
 import { withDefaultSettings } from '@shared/types';
-import type { MonthPeaks, PricedSession, Settings } from '@shared/types';
+import type { CarState, MonthPeaks, PricedSession, Settings } from '@shared/types';
 import { useMemo } from 'react';
 import { MonthSummary } from '../../../components/MonthSummary';
 import { SessionRow } from '../../../components/SessionRow';
@@ -61,6 +61,8 @@ const HistoryPage = () => {
 	const odometer = useCollection<OdometerDoc>('odometer');
 	const peaks = useCollection<MonthPeaks>('peaks');
 	const settingsDoc = useDoc<Partial<Settings>>('config/settings');
+	const car = useDoc<CarState>('car/state');
+	const consumption = car.data?.trips?.value.averageEnergyConsumption ?? null;
 
 	const settings = useMemo<Settings>(() => withDefaultSettings(settingsDoc.data), [settingsDoc.data]);
 	const readings = useMemo(() => odometer.data.map(o => ({ km: o.km, date: o.id })), [odometer.data]);
@@ -104,7 +106,7 @@ const HistoryPage = () => {
 					<div key={month} {...stylex.props(styles.month)}>
 						<MonthSummary
 							month={month}
-							totals={monthTotals(list, month, readings, monthPeaks, settings)}
+							totals={monthTotals(list, month, readings, monthPeaks, settings, consumption)}
 							final={monthPeaks?.final === true}
 							daily={dailyKwh(list, month)}
 						/>

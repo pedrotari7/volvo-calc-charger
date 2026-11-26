@@ -56,6 +56,25 @@ describe('monthTotals', () => {
 		expect(t.saving).toBeNull();
 	});
 
+	it('without a reading before the month, estimates km from the priced energy and the car consumption', () => {
+		const withPending = [...s, sess('c', '2026-11-05T10:00:00Z', 20, null)];
+		// 15 priced kWh × 0.9 efficiency / 18 kWh per 100 km = 75 km.
+		const t = monthTotals(withPending, '2026-11', [odo[0]!], null, DEFAULT_SETTINGS, 18);
+		expect(t.km).toBeCloseTo(75);
+		expect(t.kmEstimated).toBe(true);
+		expect(t.petrolCost).toBeCloseTo(0.75 * 7.5 * 18);
+		expect(t.saving).toBeCloseTo(0.75 * 7.5 * 18 - 100);
+		// A partial odometer span loses to the estimate, which matches the cost it is compared with.
+		expect(monthTotals(s, '2026-11', odo, null, DEFAULT_SETTINGS, 18).km).toBeCloseTo(75);
+	});
+
+	it('prefers the odometer when a reading before the month covers it', () => {
+		const full = [{ km: 900, date: '2026-10-31' }, odo[1]!];
+		const t = monthTotals(s, '2026-11', full, null, DEFAULT_SETTINGS, 18);
+		expect(t.km).toBe(600);
+		expect(t.kmEstimated).toBe(false);
+	});
+
 	it('measures from the last reading before the month, so the first day of driving counts', () => {
 		const unordered = [odo[1]!, { km: 900, date: '2026-10-30' }, odo[0]!];
 		expect(monthTotals(s, '2026-11', unordered, null, DEFAULT_SETTINGS).km).toBe(600);

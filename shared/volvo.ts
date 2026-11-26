@@ -91,7 +91,8 @@ function num(e: Entry | null): number | null {
 }
 
 function parseBattery(energy: unknown, now: IsoUtc): CarState['battery'] {
-	const d = dataOf(energy);
+	// Energy v2 puts the fields at the top level; Connected Vehicle (and Energy v1) wrap them in `data`.
+	const d = dataOf(energy) ?? (isObj(energy) ? energy : null);
 	if (!d) return null;
 	const level = entry(d.batteryChargeLevel);
 	const percent = num(level);

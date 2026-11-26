@@ -71,6 +71,11 @@ export async function runPollCar(nowUtc: IsoUtc, deps: PollCarDeps): Promise<voi
 	}
 
 	const car = parseCarState(raw, nowUtc);
+	if (raw.energy !== undefined && !car.battery) {
+		// Key names only (no values), to see what shape the Energy API actually sent.
+		const keys = raw.energy && typeof raw.energy === 'object' ? Object.keys(raw.energy) : [typeof raw.energy];
+		logger.warn('pollCar: energy answered but no battery level parsed', { keys });
+	}
 	await db.doc('car/state').set(car);
 	if (car.odometerKm) {
 		await db

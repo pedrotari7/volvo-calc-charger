@@ -93,6 +93,8 @@ export const MonthSummary = ({ month, totals: t, final, daily }: Props) => {
 	const peak = t.peakFee ?? 0;
 	const peakLabel = final ? 'Peak fee' : 'Peak fee (estimate)';
 	const maxDay = Math.max(0, ...(daily ?? []));
+	// Km from the energy charged and the car's average consumption rather than the odometer.
+	const approx = t.kmEstimated ? '≈ ' : '';
 
 	return (
 		<section aria-label={`Summary ${month}`} {...stylex.props(styles.card)}>
@@ -140,9 +142,9 @@ export const MonthSummary = ({ month, totals: t, final, daily }: Props) => {
 					value={t.energyKrPerKwh === null ? '–' : `${Math.round(t.energyKrPerKwh * 100)} öre`}
 					label='Energy per kWh'
 				/>
-				<Tile value={t.krPer100km === null ? '–' : formatKr(t.krPer100km)} label='Per 100 km' />
+				<Tile value={t.krPer100km === null ? '–' : `${approx}${formatKr(t.krPer100km)}`} label='Per 100 km' />
 				<Tile
-					value={t.saving === null ? '–' : formatKr(t.saving)}
+					value={t.saving === null ? '–' : `${approx}${formatKr(t.saving)}`}
 					label={t.petrolCost === null ? 'Saved vs petrol' : `Saved vs petrol (${formatKr(t.petrolCost)})`}
 					good={t.saving !== null && t.saving > 0}
 				/>
