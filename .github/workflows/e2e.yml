@@ -33,7 +33,7 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
-      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm exec playwright install --with-deps chromium webkit
       # Starts the stack itself through Playwright's webServer (scripts/e2e-stack.sh):
       # a production build, the emulators under demo-volvo, the seed, `next start`.
       - run: pnpm test:e2e
