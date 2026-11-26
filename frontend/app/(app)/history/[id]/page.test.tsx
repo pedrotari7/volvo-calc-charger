@@ -69,13 +69,10 @@ describe('SessionDetailPage', () => {
 		expect(screen.getByText(/^Busiest hour 00:00/)).toBeInTheDocument();
 	});
 
-	it('shows the peak share in kr and the total including it', () => {
+	it('shows no peak fee share: the fee is a monthly charge', () => {
 		render(<SessionDetailPage />);
-		expect(screen.getByText(/Peak fee share/)).toBeInTheDocument();
-		expect(screen.getByText('2,50 kr')).toBeInTheDocument();
-		expect(screen.queryByText(/kW$/)).toBeNull();
-		expect(screen.getByText('Total incl. peak share')).toBeInTheDocument();
-		expect(screen.getByText(formatKr(session.cost!.total + 2.5))).toBeInTheDocument();
+		expect(screen.queryByText(/peak/i)).toBeNull();
+		expect(screen.queryByText(formatKr(session.cost!.total + 2.5))).toBeNull();
 	});
 
 	it('links back to history', () => {

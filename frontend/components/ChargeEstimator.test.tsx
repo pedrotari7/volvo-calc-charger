@@ -92,6 +92,27 @@ describe('ChargeEstimator', () => {
 		renderIt(90);
 		expect(screen.getByTestId('estimate')).toHaveTextContent('Already there');
 	});
+
+	it('with a peak fee: picks reduced power, prices energy only and says why', () => {
+		const peakTariff = { ...tariff, nacka: { ...tariff.nacka, peakPerKwMonth: 45 } };
+		render(
+			<ChargeEstimator
+				now={NOW}
+				batteryPercent={50}
+				settings={DEFAULT_SETTINGS}
+				days={days}
+				tariffs={[peakTariff]}
+				peaksByMonth={{}}
+			/>
+		);
+		const out = screen.getByTestId('estimate');
+		expect(out).toHaveTextContent('at 3.7 kW');
+		expect(out).toHaveTextContent('3.7 kW instead of 11 kW keeps this month’s peak fee lower');
+		expect(out).not.toHaveTextContent(/Includes|extra peak fee/);
+		// 25 kWh: 3 h at 0.1 kr spot (11,1 kWh), the rest at 1 kr; (spot + 0.7) × 1.25.
+		const energy = (11.1 * 0.8 + 13.9 * 1.7) * 1.25;
+		expect(out).toHaveTextContent(`25,0 kWh at 3.7 kW · ${energy.toFixed(2).replace('.', ',')} kr`);
+	});
 });
 
 describe('ChargeEstimator, collapsible', () => {

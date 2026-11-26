@@ -27,7 +27,9 @@ describe('TonightCard', () => {
 		render(<TonightCard plan={plan()} />);
 		expect(screen.getByText('01:00–04:00')).toBeInTheDocument();
 		expect(screen.getByText(/18,40 kr/)).toBeInTheDocument();
-		expect(screen.getByText(/Charging at 3.7 kW instead of 11 kW saves 45,00 kr/)).toBeInTheDocument();
+		expect(
+			screen.getByText(/Charging at 3.7 kW instead of 11 kW keeps this month’s peak fee lower/)
+		).toBeInTheDocument();
 		expect(screen.queryByText(/tomorrow not out yet/i)).toBeNull();
 	});
 
@@ -38,10 +40,18 @@ describe('TonightCard', () => {
 		).toBeInTheDocument();
 	});
 
-	it('names the peak fee included in the cost', () => {
+	it('shows the energy cost only, leaving the peak fee to the month', () => {
 		const rec = { ...cand(11, 30), energyCost: 20, peakIncrease: 10 };
 		render(<TonightCard plan={plan({ recommendation: rec, alternative: null })} />);
-		expect(screen.getByText(/20,0 kWh at 11 kW · 30,00 kr \(incl. 10,00 kr peak fee\)/)).toBeInTheDocument();
+		expect(screen.getByText('20,0 kWh at 11 kW · 20,00 kr')).toBeInTheDocument();
+		expect(screen.queryByText(/peak/)).toBeNull();
+	});
+
+	it('at full power, the saving tip counts energy only', () => {
+		const rec = { ...cand(11, 25), energyCost: 15, peakIncrease: 10 };
+		const alt = { ...cand(3.7, 30), energyCost: 30 };
+		render(<TonightCard plan={plan({ recommendation: rec, alternative: alt })} />);
+		expect(screen.getByText(/Charging at 11 kW instead of 3.7 kW saves 15,00 kr/)).toBeInTheDocument();
 	});
 
 	it('omits the tip when the alternative is not dearer', () => {

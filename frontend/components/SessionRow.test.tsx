@@ -26,9 +26,9 @@ describe('SessionRow', () => {
 		expect(screen.getByRole('link')).toHaveAttribute('href', '/history/abc');
 	});
 
-	it('flags the session’s share of the month’s peak fee', () => {
+	it('never shows a per-session peak fee: it is a monthly charge', () => {
 		render(<SessionRow session={{ ...base, peakShare: 200 }} />);
-		expect(screen.getByText('+200,00 kr peak fee')).toBeInTheDocument();
+		expect(screen.queryByText(/peak fee/)).toBeNull();
 	});
 
 	it('shows pending for an unpriced session', () => {

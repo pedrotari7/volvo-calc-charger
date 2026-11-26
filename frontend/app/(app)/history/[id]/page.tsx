@@ -145,10 +145,6 @@ const SessionDetailPage = () => {
 				) : (
 					<StatusRow label='Total' value='Price pending' />
 				)}
-				<StatusRow label='Peak fee share' value={formatKr(s.peakShare)} />
-				{storedTotal !== null ? (
-					<StatusRow label='Total incl. peak share' value={formatKr(storedTotal + s.peakShare)} />
-				) : null}
 			</Group>
 			{tableError ? (
 				<Note error>Couldn&rsquo;t load prices</Note>

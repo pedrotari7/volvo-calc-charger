@@ -388,7 +388,9 @@ const Result = ({
 			</p>
 		);
 
-	const saving = (other: PlanCandidate | null) => (other ? other.cost - best.cost : 0);
+	// The peak fee is a monthly charge: windows are compared and shown on energy cost.
+	const saving = (other: PlanCandidate | null) => (other ? other.energyCost - best.energyCost : 0);
+	const faster = est.byKw.find(c => c.kw > best.kw && c.cost > best.cost) ?? null;
 	const vsNow = saving(est.asap);
 	const vsWorst = saving(est.worst);
 	const plugIn = fromNow ? 'plugging in now' : `starting at ${formatLocalTime(est.asap?.start ?? best.start)}`;
@@ -400,14 +402,17 @@ const Result = ({
 				{formatLocalTime(best.start)}–{formatLocalTime(best.end)}
 			</p>
 			<p {...stylex.props(styles.detail)}>
-				{formatKwh(neededKwh)} at {best.kw} kW · {formatKr(best.cost)} · {ore(best.cost / neededKwh)}
+				{formatKwh(neededKwh)} at {best.kw} kW · {formatKr(best.energyCost)} ·{' '}
+				{ore(best.energyCost / neededKwh)}
 			</p>
-			{best.peakIncrease > 0.005 ? (
-				<p {...stylex.props(styles.note)}>Includes {formatKr(best.peakIncrease)} extra peak fee this month</p>
+			{faster ? (
+				<p {...stylex.props(styles.note)}>
+					{best.kw} kW instead of {faster.kw} kW keeps this month’s peak fee lower
+				</p>
 			) : null}
 			{est.asap && vsNow >= 0.5 ? (
 				<p {...stylex.props(styles.tip)}>
-					Saves {formatKr(vsNow)} vs {plugIn} ({formatKr(est.asap.cost)})
+					Saves {formatKr(vsNow)} vs {plugIn} ({formatKr(est.asap.energyCost)})
 				</p>
 			) : est.asap ? (
 				<p {...stylex.props(styles.tip)}>Starting right away is about as cheap as it gets</p>
@@ -415,17 +420,17 @@ const Result = ({
 			{(est.asap && vsNow >= 0.5) || (est.worst && vsWorst >= 0.5) ? (
 				<CostBars
 					rows={[
-						{ label: `Cheapest ${formatLocalTime(best.start)}`, cost: best.cost, best: true },
+						{ label: `Cheapest ${formatLocalTime(best.start)}`, cost: best.energyCost, best: true },
 						...(est.asap && vsNow >= 0.5
 							? [
 									{
 										label: fromNow ? 'Plug in now' : `Start ${formatLocalTime(est.asap.start)}`,
-										cost: est.asap.cost,
+										cost: est.asap.energyCost,
 									},
 								]
 							: []),
 						...(est.worst && vsWorst >= 0.5 && est.worst !== est.asap
-							? [{ label: `Worst ${formatLocalTime(est.worst.start)}`, cost: est.worst.cost }]
+							? [{ label: `Worst ${formatLocalTime(est.worst.start)}`, cost: est.worst.energyCost }]
 							: []),
 					]}
 				/>

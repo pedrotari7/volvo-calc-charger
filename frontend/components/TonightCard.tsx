@@ -80,7 +80,11 @@ const Body = ({ plan, now, readyBy = '07:00' }: Props & { plan: Plan }) => {
 		return <p {...stylex.props(styles.alert)}>Plug in now — not enough time to wait for cheap hours</p>;
 	if (!rec) return <p {...stylex.props(styles.note)}>Prices for tomorrow not out yet</p>;
 
-	const saving = alt && alt.cost > rec.cost ? alt.cost - rec.cost : 0;
+	// The peak fee is a monthly charge, so costs here are energy only. The power choice still weighs it:
+	// reduced power wins when it keeps the month's peak lower.
+	const dearer = alt !== null && alt.cost > rec.cost;
+	const slower = dearer && rec.kw < alt.kw;
+	const saving = dearer && !slower ? alt.energyCost - rec.energyCost : 0;
 	const night = nightOf(plan, readyBy);
 
 	return (
@@ -89,14 +93,14 @@ const Body = ({ plan, now, readyBy = '07:00' }: Props & { plan: Plan }) => {
 				{formatLocalTime(rec.start)}–{formatLocalTime(rec.end)}
 			</p>
 			<p {...stylex.props(styles.row)}>
-				{formatKwh(plan.neededKwh)} at {rec.kw} kW · {formatKr(rec.cost)}
-				{rec.peakIncrease > 0.005 ? ` (incl. ${formatKr(rec.peakIncrease)} peak fee)` : ''}
+				{formatKwh(plan.neededKwh)} at {rec.kw} kW · {formatKr(rec.energyCost)}
 			</p>
 			{night ? <NightStrip from={night.from} to={night.to} start={rec.start} end={rec.end} now={now} /> : null}
-			{alt && saving > 0 ? (
+			{alt && (slower || saving >= 0.005) ? (
 				<p {...stylex.props(styles.tip)}>
 					<Icon name='check' size={16} strokeWidth={2.4} />
-					Charging at {rec.kw} kW instead of {alt.kw} kW saves {formatKr(saving)}
+					Charging at {rec.kw} kW instead of {alt.kw} kW{' '}
+					{slower ? 'keeps this month’s peak fee lower' : `saves ${formatKr(saving)}`}
 				</p>
 			) : null}
 			{plan.basis === 'today' ? <p {...stylex.props(styles.note)}>Prices for tomorrow not out yet</p> : null}

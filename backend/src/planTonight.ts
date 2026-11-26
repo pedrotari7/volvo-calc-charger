@@ -11,7 +11,7 @@ const hhmm = (iso: string) => `${String(localParts(iso).hour).padStart(2, '0')}:
 function pushBody(plan: Plan, target: number): string {
 	const head = `${plan.batteryPercent}% → ${target}%`;
 	const r = plan.recommendation;
-	if (r) return `${head}: plug in, cheapest ${hhmm(r.start)}–${hhmm(r.end)}, ≈ ${Math.round(r.cost)} kr`;
+	if (r) return `${head}: plug in, cheapest ${hhmm(r.start)}–${hhmm(r.end)}, ≈ ${Math.round(r.energyCost)} kr`;
 	return `${head}: plug in now, not enough time to wait for cheap hours`;
 }
 

@@ -68,7 +68,9 @@ describe('runPlanTonight', () => {
 		expect(body).toMatch(/^62% → 80%: plug in, cheapest 0\d:00–0\d:00, ≈ \d+ kr$/);
 		const r = plan!.recommendation!;
 		const hhmm = (iso: string) => `${pad(localParts(iso).hour)}:00`;
-		expect(body).toBe(`62% → 80%: plug in, cheapest ${hhmm(r.start)}–${hhmm(r.end)}, ≈ ${Math.round(r.cost)} kr`);
+		expect(body).toBe(
+			`62% → 80%: plug in, cheapest ${hhmm(r.start)}–${hhmm(r.end)}, ≈ ${Math.round(r.energyCost)} kr`
+		);
 	});
 
 	it('writes the plan but sends no push when already plugged in', async () => {
