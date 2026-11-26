@@ -65,12 +65,18 @@ const HomePage = () => {
 				{car.loading ? (
 					<Note loading>Loading…</Note>
 				) : (
-					<CarSummary car={car.data} charger={charger.data} now={now} rateNow={rateNow} />
+					<CarSummary
+						car={car.data}
+						charger={charger.data}
+						now={now}
+						rateNow={rateNow}
+						target={settings.targetPercent}
+					/>
 				)}
 				{plan.error ? (
 					<Note error>Couldn&apos;t load the plan</Note>
 				) : plan.loading ? null : (
-					<TonightCard plan={plan.data} />
+					<TonightCard plan={plan.data} now={now} readyBy={settings.readyBy} />
 				)}
 			</div>
 			{prices.error || tariffs.error ? (
@@ -88,6 +94,7 @@ const HomePage = () => {
 						tariffs={tariffs.data}
 						peaksByMonth={peaksByMonth}
 						onWindow={setEstimateWindow}
+						collapsible
 					/>
 				</>
 			)}

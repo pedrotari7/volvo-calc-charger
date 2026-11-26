@@ -7,7 +7,7 @@ test('history lists November, opens the 2-3 Nov session with two hourly rows and
 	await expect(page.getByRole('region', { name: 'Summary 2026-11' })).toBeVisible();
 
 	// The session starts 23:02 UTC on 2 Nov, which is after midnight in Stockholm.
-	await page.getByRole('link', { name: /2026-11-03/ }).click();
+	await page.getByRole('link', { name: /Tue 3 Nov/ }).click();
 
 	const table = page.getByRole('table', { name: /Cost per hour/ });
 	await expect(table).toBeVisible();

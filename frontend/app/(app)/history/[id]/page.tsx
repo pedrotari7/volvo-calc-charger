@@ -8,10 +8,12 @@ import type { PriceDay, PricedSession, Tariff } from '@shared/types';
 import { documentId, where } from 'firebase/firestore';
 import { useParams } from 'next/navigation';
 import { useMemo } from 'react';
+import { HourBars } from '../../../../components/HourBars';
 import { Group } from '../../../../components/List';
 import { Screen } from '../../../../components/Screen';
 import { Note } from '../../../../components/Spinner';
 import { StatusRow } from '../../../../components/StatusRow';
+import { formatDay } from '../../../../lib/localTime';
 import { useCollection } from '../../../../lib/useCollection';
 import { useDoc } from '../../../../lib/useDoc';
 import { colors } from '../../../tokens.stylex';
@@ -135,7 +137,7 @@ const SessionDetailPage = () => {
 	const differs = complete && storedTotal !== null && Math.abs(recomputed - storedTotal) > 0.01;
 
 	return (
-		<Screen title={localDateOf(s.startUtc)} back={back}>
+		<Screen title={formatDay(s.startUtc)} back={back}>
 			<Group label='Session'>
 				<StatusRow label='Energy' value={formatKwh(s.kWh)} />
 				{storedTotal !== null ? (
@@ -154,6 +156,7 @@ const SessionDetailPage = () => {
 				<Note loading>Loading…</Note>
 			) : (
 				<Group header='Per hour' footer={differs ? 'Breakdown uses current prices and tariffs' : undefined}>
+					<HourBars rows={rows.map(r => ({ hour: r.hour, kWh: r.kWh, cost: r.parts?.total ?? null }))} />
 					<div {...stylex.props(styles.scroll)}>
 						<table aria-label='Cost per hour (kr, VAT separate)' {...stylex.props(styles.table)}>
 							<thead>

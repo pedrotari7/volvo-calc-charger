@@ -62,6 +62,13 @@ describe('SessionDetailPage', () => {
 		expect(screen.getByText('18,66 kr')).toBeInTheDocument();
 	});
 
+	it('charts the energy of each hour above the table', () => {
+		render(<SessionDetailPage />);
+		const chart = screen.getByRole('img', { name: 'Energy per hour' });
+		expect(chart.children).toHaveLength(2);
+		expect(screen.getByText(/^Busiest hour 00:00/)).toBeInTheDocument();
+	});
+
 	it('shows the peak share in kr and the total including it', () => {
 		render(<SessionDetailPage />);
 		expect(screen.getByText(/Peak fee share/)).toBeInTheDocument();

@@ -3,7 +3,7 @@ import { formatAgo, formatKr, formatKwh } from '@shared/format';
 import type { CarState, ChargerState } from '@shared/types';
 import { formatLocalTime } from '../lib/localTime';
 import { colors, fonts, tint } from '../app/tokens.stylex';
-import { BatteryBar } from './BatteryBar';
+import { BatteryRing } from './BatteryRing';
 import { Icon } from './Icon';
 
 const pulse = stylex.keyframes({
@@ -25,13 +25,12 @@ const styles = stylex.create({
 	charging: {
 		backgroundImage: `radial-gradient(120% 90% at 100% 0%, ${tint.brand15}, transparent 60%)`,
 	},
-	top: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 },
-	big: {
+	top: { display: 'flex', alignItems: 'center', gap: 20 },
+	facts: { display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 8, minWidth: 0 },
+	range: {
 		fontFamily: fonts.rounded,
-		fontSize: 56,
-		lineHeight: 1,
+		fontSize: 22,
 		fontWeight: 700,
-		letterSpacing: '-0.02em',
 		color: colors.ink,
 		fontVariantNumeric: 'tabular-nums',
 	},
@@ -51,16 +50,14 @@ const styles = stylex.create({
 	pillOn: { backgroundColor: tint.brand15, color: colors.brand },
 	pillPlug: { backgroundColor: tint.info15, color: colors.info },
 	pulse: { animationName: pulse, animationDuration: '1.6s', animationIterationCount: 'infinite' },
-	chips: { display: 'flex', flexWrap: 'wrap', gap: 8 },
 	chip: {
 		display: 'inline-flex',
 		alignItems: 'center',
 		gap: 6,
 		fontSize: 15,
 		color: colors.ink,
-		fontVariantNumeric: 'tabular-nums',
 	},
-	dot: { width: 3, height: 3, borderRadius: 2, backgroundColor: colors.faint, alignSelf: 'center' },
+	chipWarn: { color: colors.warn },
 	live: {
 		fontSize: 15,
 		lineHeight: 1.45,
@@ -80,6 +77,8 @@ interface Props {
 	now: string;
 	// All-in kr/kWh including VAT for the current hour; null when unknown.
 	rateNow: number | null;
+	/** Charge target %, marked on the battery ring. */
+	target?: number;
 }
 
 const ChargerPill = ({ charger }: { charger: ChargerState }) => {
@@ -101,32 +100,30 @@ const ChargerPill = ({ charger }: { charger: ChargerState }) => {
 	return <span {...stylex.props(styles.pill)}>Not plugged in</span>;
 };
 
-export const CarSummary = ({ car, charger, now, rateNow }: Props) => {
+export const CarSummary = ({ car, charger, now, rateNow, target }: Props) => {
 	const battery = car?.battery ?? null;
 	const locked = car?.locked ?? null;
 	const range = battery?.value.rangeKm;
 	const estFullAt = battery?.value.estFullAt ?? null;
+	const charging = charger?.charging === true;
 
 	return (
-		<section aria-label='Car' {...stylex.props(styles.card, charger?.charging && styles.charging)}>
+		<section aria-label='Car' {...stylex.props(styles.card, charging && styles.charging)}>
 			<div {...stylex.props(styles.top)}>
-				<p {...stylex.props(styles.big)}>{battery ? `${battery.value.percent} %` : '–'}</p>
-				{charger ? <ChargerPill charger={charger} /> : null}
-			</div>
-			<BatteryBar percent={battery?.value.percent ?? 0} charging={charger?.charging === true} />
-			<div {...stylex.props(styles.chips)}>
-				<span {...stylex.props(styles.chip)}>
-					Range {range === null || range === undefined ? '–' : `${range} km`}
-				</span>
-				{locked ? (
-					<>
-						<span {...stylex.props(styles.dot)} />
-						<span {...stylex.props(styles.chip)}>
+				<BatteryRing percent={battery?.value.percent ?? null} target={target} charging={charging} />
+				<div {...stylex.props(styles.facts)}>
+					{charger ? <ChargerPill charger={charger} /> : null}
+					<span {...stylex.props(styles.range)}>
+						Range {range === null || range === undefined ? '–' : `${range} km`}
+					</span>
+					{locked ? (
+						<span {...stylex.props(styles.chip, !locked.value && styles.chipWarn)}>
 							<Icon name='lock' size={15} strokeWidth={2} />
 							{locked.value ? 'Locked' : 'Not locked'}
 						</span>
-					</>
-				) : null}
+					) : null}
+					{car ? <span {...stylex.props(styles.muted)}>Updated {formatAgo(car.updatedAt, now)}</span> : null}
+				</div>
 			</div>
 			{charger?.charging ? (
 				<p {...stylex.props(styles.live)}>
@@ -136,7 +133,6 @@ export const CarSummary = ({ car, charger, now, rateNow }: Props) => {
 					{estFullAt ? ` · full ${formatLocalTime(estFullAt)}` : ''}
 				</p>
 			) : null}
-			{car ? <p {...stylex.props(styles.muted)}>Updated {formatAgo(car.updatedAt, now)}</p> : null}
 		</section>
 	);
 };

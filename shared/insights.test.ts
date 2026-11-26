@@ -28,6 +28,8 @@ describe('monthTotals', () => {
 		expect(t).toMatchObject({
 			kWh: 15,
 			cost: 100,
+			energyCost: 100,
+			energyKrPerKwh: 100 / 15,
 			avgKrPerKwh: 100 / 15,
 			km: 500,
 			krPer100km: 20,
@@ -93,6 +95,18 @@ describe('monthTotals', () => {
 		const edge = [sess('e', '2026-10-31T23:30:00Z', 4, 10)]; // 00:30 local 1 Nov
 		expect(monthTotals(edge, '2026-11', [], null, DEFAULT_SETTINGS).kWh).toBe(4);
 		expect(monthTotals(edge, '2026-10', [], null, DEFAULT_SETTINGS).kWh).toBe(0);
+	});
+});
+
+describe('monthTotals energy split', () => {
+	it('keeps the peak fee out of the energy price', () => {
+		const s = [sess('a', '2026-11-03T10:00:00Z', 10, 60), sess('b', '2026-11-04T10:00:00Z', 5, 40)];
+		const peaks = { month: '2026-11', top3: [], estimatedFee: 50, final: false };
+		const t = monthTotals(s, '2026-11', odo, peaks, DEFAULT_SETTINGS);
+		expect(t.cost).toBe(150);
+		expect(t.energyCost).toBe(100);
+		expect(t.energyKrPerKwh).toBeCloseTo(100 / 15, 10);
+		expect(t.avgKrPerKwh).toBeCloseTo(150 / 15, 10);
 	});
 });
 

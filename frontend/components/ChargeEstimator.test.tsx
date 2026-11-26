@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { PriceDay, Tariff } from '@shared/types';
 import { DEFAULT_SETTINGS } from '@shared/types';
@@ -91,5 +91,39 @@ describe('ChargeEstimator', () => {
 	it('shows nothing to do at or above target', () => {
 		renderIt(90);
 		expect(screen.getByTestId('estimate')).toHaveTextContent('Already there');
+	});
+});
+
+describe('ChargeEstimator, collapsible', () => {
+	it('stays folded and leaves the chart to Tonight until opened', () => {
+		const onWindow = vi.fn();
+		render(
+			<ChargeEstimator
+				now={NOW}
+				batteryPercent={50}
+				settings={DEFAULT_SETTINGS}
+				days={days}
+				tariffs={[tariff]}
+				peaksByMonth={{}}
+				onWindow={onWindow}
+				collapsible
+			/>
+		);
+		expect(screen.queryByLabelText('Battery now')).toBeNull();
+		expect(onWindow).toHaveBeenLastCalledWith(null);
+
+		const details = screen.getByText('Another time, level or power? Try it here').closest('details')!;
+		details.open = true;
+		fireEvent(details, new Event('toggle'));
+		expect(screen.getByLabelText('Battery now')).toHaveValue('50');
+		expect(onWindow).toHaveBeenLastCalledWith(expect.objectContaining({ start: expect.any(String) }));
+	});
+
+	it('compares the cheapest window with plugging in now as bars', () => {
+		renderIt();
+		const bars = screen.getByRole('list', { name: 'Cost by start time' });
+		const items = within(bars).getAllByRole('listitem');
+		expect(items[0]).toHaveTextContent(/^Cheapest 02:00/);
+		expect(items[1]).toHaveTextContent(/^Plug in now/);
 	});
 });

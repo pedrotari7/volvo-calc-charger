@@ -1,9 +1,11 @@
 import * as stylex from '@stylexjs/stylex';
 import { formatKr, formatKwh } from '@shared/format';
-import type { Plan } from '@shared/types';
+import { nextLocalTime } from '@shared/time';
+import type { IsoUtc, Plan } from '@shared/types';
 import { formatLocalTime } from '../lib/localTime';
 import { colors, fonts, tint } from '../app/tokens.stylex';
 import { Icon } from './Icon';
+import { NightStrip } from './NightStrip';
 
 const styles = stylex.create({
 	card: {
@@ -52,7 +54,25 @@ const styles = stylex.create({
 	alert: { fontSize: 20, lineHeight: 1.3, fontWeight: 600, color: colors.warn },
 });
 
-const Body = ({ plan }: { plan: Plan }) => {
+/** The night the plan covers: 18:00 on the plan's evening (or the window start, if earlier) to ready-by. */
+function nightOf(plan: Plan, readyBy: string): { from: IsoUtc; to: IsoUtc } | null {
+	const rec = plan.recommendation;
+	if (!rec) return null;
+	const six = nextLocalTime(`${plan.date}T06:00:00.000Z`, '18:00');
+	const from = Date.parse(rec.start) < Date.parse(six) ? rec.start : six;
+	const ready = nextLocalTime(from, readyBy);
+	const to = Date.parse(rec.end) > Date.parse(ready) ? rec.end : ready;
+	return { from, to };
+}
+
+interface Props {
+	plan: Plan | null;
+	now?: IsoUtc;
+	/** Settings' ready-by time, the end of the night strip. */
+	readyBy?: string;
+}
+
+const Body = ({ plan, now, readyBy = '07:00' }: Props & { plan: Plan }) => {
 	const { recommendation: rec, alternative: alt } = plan;
 
 	if (plan.neededKwh <= 0) return <p {...stylex.props(styles.window)}>Already at target</p>;
@@ -61,6 +81,7 @@ const Body = ({ plan }: { plan: Plan }) => {
 	if (!rec) return <p {...stylex.props(styles.note)}>Prices for tomorrow not out yet</p>;
 
 	const saving = alt && alt.cost > rec.cost ? alt.cost - rec.cost : 0;
+	const night = nightOf(plan, readyBy);
 
 	return (
 		<>
@@ -68,10 +89,13 @@ const Body = ({ plan }: { plan: Plan }) => {
 				{formatLocalTime(rec.start)}–{formatLocalTime(rec.end)}
 			</p>
 			<p {...stylex.props(styles.row)}>
-				{formatKwh(plan.neededKwh)} · {formatKr(rec.cost)}
+				{formatKwh(plan.neededKwh)} at {rec.kw} kW · {formatKr(rec.cost)}
+				{rec.peakIncrease > 0.005 ? ` (incl. ${formatKr(rec.peakIncrease)} peak fee)` : ''}
 			</p>
+			{night ? <NightStrip from={night.from} to={night.to} start={rec.start} end={rec.end} now={now} /> : null}
 			{alt && saving > 0 ? (
 				<p {...stylex.props(styles.tip)}>
+					<Icon name='check' size={16} strokeWidth={2.4} />
 					Charging at {rec.kw} kW instead of {alt.kw} kW saves {formatKr(saving)}
 				</p>
 			) : null}
@@ -80,12 +104,12 @@ const Body = ({ plan }: { plan: Plan }) => {
 	);
 };
 
-export const TonightCard = ({ plan }: { plan: Plan | null }) => (
+export const TonightCard = ({ plan, now, readyBy }: Props) => (
 	<section aria-label='Tonight' {...stylex.props(styles.card)}>
 		<h2 {...stylex.props(styles.title)}>
 			<Icon name='moon' size={15} filled strokeWidth={1.4} />
 			Tonight
 		</h2>
-		{plan ? <Body plan={plan} /> : <p {...stylex.props(styles.note)}>No plan yet</p>}
+		{plan ? <Body plan={plan} now={now} readyBy={readyBy} /> : <p {...stylex.props(styles.note)}>No plan yet</p>}
 	</section>
 );

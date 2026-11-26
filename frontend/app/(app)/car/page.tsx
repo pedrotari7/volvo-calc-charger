@@ -11,18 +11,147 @@ import { StatusRow } from '../../../components/StatusRow';
 import { tileXY } from '../../../lib/osmTile';
 import { useDoc } from '../../../lib/useDoc';
 import { useNow } from '../../../lib/useNow';
-import { colors } from '../../tokens.stylex';
+import { Icon } from '../../../components/Icon';
+import type { IconName } from '../../../components/Icon';
+import { colors, fonts, tint } from '../../tokens.stylex';
 
 const styles = stylex.create({
 	tile: { width: '100%', height: 200, objectFit: 'cover', display: 'block' },
 	mapLink: { color: colors.info },
 	credit: { fontSize: 11, color: colors.faint },
+	glance: {
+		display: 'grid',
+		gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+		gap: 10,
+		marginBottom: 8,
+	},
+	glanceTile: {
+		display: 'flex',
+		flexDirection: 'column',
+		gap: 10,
+		padding: 14,
+		borderRadius: 16,
+		backgroundColor: colors.surface,
+		color: colors.ink,
+		textDecoration: 'none',
+		transitionProperty: 'transform',
+		transitionDuration: '0.15s',
+		':active': { transform: 'scale(0.97)' },
+	},
+	badge: {
+		width: 32,
+		height: 32,
+		borderRadius: 10,
+		display: 'flex',
+		alignItems: 'center',
+		justifyContent: 'center',
+	},
+	ok: { backgroundColor: tint.brand15, color: colors.good },
+	bad: { backgroundColor: tint.bad15, color: colors.bad },
+	unknown: { backgroundColor: tint.fill, color: colors.muted },
+	tileValue: { fontFamily: fonts.rounded, fontSize: 17, fontWeight: 700, lineHeight: 1.2 },
+	tileLabel: { fontSize: 13, color: colors.muted },
 });
+
+type Tone = 'ok' | 'bad' | 'unknown';
+
+const GlanceTile = ({
+	href,
+	icon,
+	label,
+	value,
+	tone,
+}: {
+	href: string;
+	icon: IconName;
+	label: string;
+	value: string;
+	tone: Tone;
+}) => (
+	<a href={href} {...stylex.props(styles.glanceTile)}>
+		<span {...stylex.props(styles.badge, styles[tone])}>
+			<Icon name={tone === 'bad' ? 'warning' : icon} size={18} strokeWidth={2} />
+		</span>
+		<span {...stylex.props(styles.tileValue)}>{value}</span>
+		<span {...stylex.props(styles.tileLabel)}>{label}</span>
+	</a>
+);
+
+/** The car's state in four tiles, each jumping to its section. */
+const Glance = ({ car }: { car: CarState | null }) => {
+	const open = car?.openings ? Object.entries(car.openings.value).filter(([, v]) => v === 'open') : null;
+	const unlocked = car?.locked?.value === false;
+	const tyresBad = car?.tyres ? Object.values(car.tyres.value).filter(v => !isOk(v)).length : null;
+	const warnings = car?.warnings?.value.length ?? null;
+	const service = car?.service?.value ?? null;
+	const serviceDue = service !== null && !isOk(service.status);
+
+	return (
+		<div aria-label='At a glance' role='group' {...stylex.props(styles.glance)}>
+			<GlanceTile
+				href='#openings'
+				icon='lock'
+				label='Doors, windows & lock'
+				value={
+					open === null && car?.locked == null
+						? 'Unknown'
+						: open && open.length
+							? `${open.length} open`
+							: unlocked
+								? 'Unlocked'
+								: 'All shut'
+				}
+				tone={
+					open === null && car?.locked == null
+						? 'unknown'
+						: (open?.length ?? 0) > 0 || unlocked
+							? 'bad'
+							: 'ok'
+				}
+			/>
+			<GlanceTile
+				href='#warnings'
+				icon='check'
+				label='Warnings'
+				value={warnings === null ? 'Unknown' : warnings === 0 ? 'None' : `${warnings} active`}
+				tone={warnings === null ? 'unknown' : warnings > 0 ? 'bad' : 'ok'}
+			/>
+			<GlanceTile
+				href='#tyres'
+				icon='car'
+				label='Tyres'
+				value={tyresBad === null ? 'Unknown' : tyresBad === 0 ? 'OK' : `${tyresBad} to check`}
+				tone={tyresBad === null ? 'unknown' : tyresBad > 0 ? 'bad' : 'ok'}
+			/>
+			<GlanceTile
+				href='#service'
+				icon='gear'
+				label='Service'
+				value={
+					service === null
+						? 'Unknown'
+						: service.distanceKm !== null
+							? `in ${num(service.distanceKm)} km`
+							: service.days !== null
+								? `in ${num(service.days)} days`
+								: status(service.status)
+				}
+				tone={service === null ? 'unknown' : serviceDue ? 'bad' : 'ok'}
+			/>
+		</div>
+	);
+};
 
 const sentence = (key: string) => {
 	const s = key.replace(/([A-Z])/g, ' $1').toLowerCase();
 	return s.charAt(0).toUpperCase() + s.slice(1);
 };
+
+// Volvo's "nothing wrong" values.
+const isOk = (v: string) => /^(no_?warning|ok|unspecified)$/i.test(v);
+
+// Volvo status codes (NO_WARNING, VERY_LOW_PRESSURE…) as words; "nothing wrong" codes read OK.
+const status = (code: string) => (isOk(code) ? 'OK' : sentence(code.toLowerCase().replace(/_/g, ' ')));
 
 const OPENING_SUFFIX: Record<string, string> = { door: 'door', window: 'window' };
 const openingLabel = (key: string) => {
@@ -44,9 +173,11 @@ const coord = (n: number) => String(Number(n.toFixed(5)));
 const num = (n: number) => n.toLocaleString('sv-SE', { maximumFractionDigits: 1 });
 
 const Section = ({ title, at, now, children }: { title: string; at?: string; now: string; children: ReactNode }) => (
-	<Group header={title} aside={at ? formatAgo(at, now) : undefined}>
-		{children}
-	</Group>
+	<div id={title.toLowerCase().split(' ')[0]}>
+		<Group header={title} aside={at ? formatAgo(at, now) : undefined}>
+			{children}
+		</Group>
+	</div>
 );
 
 const NotAvailable = () => <CellText>Not available</CellText>;
@@ -75,6 +206,7 @@ const CarPage = () => {
 
 	return (
 		<Screen title='Car'>
+			<Glance car={car} />
 			<Section title='Openings' at={car?.openings?.at} now={now}>
 				{car?.openings && Object.keys(car.openings.value).length ? (
 					Object.entries(car.openings.value).map(([k, v]) => (
@@ -91,7 +223,9 @@ const CarPage = () => {
 			</Section>
 			<Section title='Tyres' at={car?.tyres?.at} now={now}>
 				{car?.tyres && Object.keys(car.tyres.value).length ? (
-					Object.entries(car.tyres.value).map(([k, v]) => <StatusRow key={k} label={sentence(k)} value={v} />)
+					Object.entries(car.tyres.value).map(([k, v]) => (
+						<StatusRow key={k} label={sentence(k)} value={status(v)} tone={isOk(v) ? undefined : 'bad'} />
+					))
 				) : (
 					<NotAvailable />
 				)}
@@ -110,7 +244,7 @@ const CarPage = () => {
 			<Section title='Service' at={car?.service?.at} now={now}>
 				{car?.service ? (
 					<>
-						<StatusRow label='Status' value={sentence(car.service.value.status)} />
+						<StatusRow label='Status' value={status(car.service.value.status)} />
 						{car.service.value.distanceKm !== null ? (
 							<StatusRow label='Distance to service' value={`${num(car.service.value.distanceKm)} km`} />
 						) : null}

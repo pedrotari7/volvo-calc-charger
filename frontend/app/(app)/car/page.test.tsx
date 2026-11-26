@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CarState } from '@shared/types';
 
@@ -35,6 +35,34 @@ describe('CarPage', () => {
 		expect(screen.getByText('Front left door')).toBeInTheDocument();
 		expect(screen.getByText('Open')).toBeInTheDocument();
 		expect(useDoc).toHaveBeenCalledWith('car/state');
+	});
+
+	it('sums the car up in tiles that jump to their sections', () => {
+		render(<CarPage />);
+		const glance = screen.getByRole('group', { name: 'At a glance' });
+		const tile = (name: RegExp) => within(glance).getByRole('link', { name });
+		expect(tile(/1 open/)).toHaveAttribute('href', '#openings');
+		expect(tile(/None\s*Warnings/)).toHaveAttribute('href', '#warnings');
+		expect(tile(/Unknown\s*Tyres/)).toBeInTheDocument();
+		expect(tile(/in 12\s000 km\s*Service/)).toHaveAttribute('href', '#service');
+		expect(document.getElementById('openings')).not.toBeNull();
+	});
+
+	it('words Volvo status codes and flags the bad ones', () => {
+		useDoc.mockReturnValue({
+			data: {
+				...car,
+				tyres: { at, value: { frontLeft: 'NO_WARNING', rearRight: 'VERY_LOW_PRESSURE' } },
+				service: { at, value: { status: 'NO_WARNING', distanceKm: null, days: null } },
+			},
+			loading: false,
+			error: null,
+		});
+		render(<CarPage />);
+		expect(screen.getAllByText('OK').length).toBeGreaterThanOrEqual(2);
+		expect(screen.getByText('Very low pressure')).toBeInTheDocument();
+		expect(screen.queryByText(/NO_WARNING/)).toBeNull();
+		expect(within(screen.getByRole('group', { name: 'At a glance' })).getByText('1 to check')).toBeInTheDocument();
 	});
 
 	it('shows Not available for a null section', () => {

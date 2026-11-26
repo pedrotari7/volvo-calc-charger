@@ -3,7 +3,12 @@ import type { MonthPeaks, PricedSession, Settings } from './types';
 
 export interface MonthTotals {
 	kWh: number;
+	/** Priced sessions' energy cost plus the month's peak fee. */
 	cost: number;
+	/** Priced sessions' energy cost alone. */
+	energyCost: number;
+	/** Energy cost per priced kWh, without the peak fee. */
+	energyKrPerKwh: number | null;
 	avgKrPerKwh: number | null;
 	km: number | null;
 	krPer100km: number | null;
@@ -41,7 +46,8 @@ export function monthTotals(
 	const inMonth = sessions.filter(s => monthKey(s.startUtc) === month);
 	const priced = inMonth.filter(s => s.status === 'priced' && s.cost);
 	const peakFee = peaks?.estimatedFee ?? null;
-	const cost = priced.reduce((a, s) => a + (s.cost?.total ?? 0), 0) + (peakFee ?? 0);
+	const energyCost = priced.reduce((a, s) => a + (s.cost?.total ?? 0), 0);
+	const cost = energyCost + (peakFee ?? 0);
 	const pricedKwh = priced.reduce((a, s) => a + s.kWh, 0);
 
 	const delta = odometerDelta(odometer, month);
@@ -51,6 +57,8 @@ export function monthTotals(
 	return {
 		kWh: inMonth.reduce((a, s) => a + s.kWh, 0),
 		cost,
+		energyCost,
+		energyKrPerKwh: pricedKwh > 0 ? energyCost / pricedKwh : null,
 		avgKrPerKwh: pricedKwh > 0 ? cost / pricedKwh : null,
 		km,
 		krPer100km: km === null ? null : (cost / km) * 100,

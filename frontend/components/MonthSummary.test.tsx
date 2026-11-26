@@ -25,13 +25,22 @@ const totals = (sessions: PricedSession[], peaks = null as Parameters<typeof mon
 	monthTotals(sessions, '2026-11', odo, peaks, DEFAULT_SETTINGS);
 
 describe('MonthSummary', () => {
+	it('draws a bar per day of the month', () => {
+		const daily = Array.from({ length: 30 }, (_, i) => (i === 2 ? 10 : 0));
+		render(<MonthSummary month='2026-11' totals={totals([session('a')])} final={false} daily={daily} />);
+		const days = screen.getByRole('img', { name: 'Energy charged per day' });
+		expect(days.children).toHaveLength(30);
+		expect(screen.getByTitle('3: 10,0 kWh')).toBeInTheDocument();
+	});
+
 	it('shows kr per 100 km, petrol cost and saving', () => {
 		render(<MonthSummary month='2026-11' totals={totals([session('a')])} final={false} />);
+		expect(screen.getByText('November 2026')).toBeInTheDocument();
 		expect(screen.getByText('20,00 kr')).toBeInTheDocument();
-		expect(screen.getByText('67,50 kr')).toBeInTheDocument();
+		expect(screen.getByText('Saved vs petrol (67,50 kr)')).toBeInTheDocument();
 		expect(screen.getByText('57,50 kr')).toBeInTheDocument();
-		expect(screen.getByText('10,0 kWh')).toBeInTheDocument();
-		expect(screen.getByText('1,00 kr/kWh')).toBeInTheDocument();
+		expect(screen.getByText('10,0 kWh charged at home')).toBeInTheDocument();
+		expect(screen.getByText('100 öre')).toBeInTheDocument();
 	});
 
 	it('marks the peak fee as an estimate unless final', () => {
@@ -39,10 +48,15 @@ describe('MonthSummary', () => {
 		const { rerender } = render(
 			<MonthSummary month='2026-11' totals={totals([session('a')], peaks)} final={false} />
 		);
-		expect(screen.getByText('Peak fee (estimate)')).toBeInTheDocument();
+		expect(screen.getByText('Peak fee (estimate)', { exact: false })).toBeInTheDocument();
 		expect(screen.getByText('5,00 kr')).toBeInTheDocument();
+		// The month total splits into energy and peak fee, and the energy price leaves the peak fee out.
+		expect(screen.getByText('15,00 kr')).toBeInTheDocument();
+		expect(screen.getByRole('img', { name: 'Energy 10,00 kr, Peak fee (estimate) 5,00 kr' })).toBeInTheDocument();
+		expect(screen.getByText('100 öre')).toBeInTheDocument();
 		rerender(<MonthSummary month='2026-11' totals={totals([session('a')], peaks)} final />);
-		expect(screen.getByText('Peak fee')).toBeInTheDocument();
+		expect(screen.getByText('Peak fee', { exact: false })).toBeInTheDocument();
+		expect(screen.queryByText(/estimate/)).toBeNull();
 	});
 
 	it('shows the pending count and dashes without odometer data', () => {
@@ -54,7 +68,14 @@ describe('MonthSummary', () => {
 			DEFAULT_SETTINGS
 		);
 		render(<MonthSummary month='2026-11' totals={t} final={false} />);
-		expect(screen.getByText('1 pending')).toBeInTheDocument();
+		expect(screen.getByText('1 pending — prices not in yet')).toBeInTheDocument();
+	});
+
+	it('says pending, not 0 kr, while no session is priced yet', () => {
+		const t = monthTotals([session('a', { status: 'pending', cost: null })], '2026-11', [], null, DEFAULT_SETTINGS);
+		render(<MonthSummary month='2026-11' totals={t} final={false} />);
+		expect(screen.getByText('pending')).toBeInTheDocument();
+		expect(screen.queryByText('0,00 kr')).toBeNull();
 		expect(screen.getAllByText('–').length).toBeGreaterThan(0);
 	});
 });

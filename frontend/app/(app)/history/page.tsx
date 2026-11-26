@@ -2,7 +2,7 @@
 
 import * as stylex from '@stylexjs/stylex';
 import { monthTotals } from '@shared/insights';
-import { monthKey } from '@shared/time';
+import { localDateOf, monthKey } from '@shared/time';
 import { withDefaultSettings } from '@shared/types';
 import type { MonthPeaks, PricedSession, Settings } from '@shared/types';
 import { useMemo } from 'react';
@@ -35,6 +35,22 @@ const styles = stylex.create({
 	},
 	emptyIcon: { color: colors.faint },
 });
+
+/** kWh per day of `month`, by the local date of each charged hour (the session start when it has none). */
+function dailyKwh(sessions: PricedSession[], month: string): number[] {
+	const [y, m] = month.split('-').map(Number) as [number, number];
+	const out = Array.from({ length: new Date(Date.UTC(y, m, 0)).getUTCDate() }, () => 0);
+	for (const s of sessions) {
+		const parts = s.hours.length
+			? s.hours.map(h => [h.hourStartUtc, h.kWh] as const)
+			: [[s.startUtc, s.kWh] as const];
+		for (const [iso, kWh] of parts) {
+			const d = localDateOf(iso);
+			if (d.startsWith(month)) out[Number(d.slice(8)) - 1]! += kWh;
+		}
+	}
+	return out;
+}
 
 interface OdometerDoc {
 	km: number;
@@ -90,6 +106,7 @@ const HistoryPage = () => {
 							month={month}
 							totals={monthTotals(list, month, readings, monthPeaks, settings)}
 							final={monthPeaks?.final === true}
+							daily={dailyKwh(list, month)}
 						/>
 						<div {...stylex.props(styles.sessions)}>
 							{list.map(s => (

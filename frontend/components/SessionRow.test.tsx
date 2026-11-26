@@ -18,11 +18,17 @@ const base: PricedSession = {
 describe('SessionRow', () => {
 	it('shows date, kWh, cost, kr/kWh and links to the detail', () => {
 		render(<SessionRow session={base} />);
-		expect(screen.getByText('2026-11-03')).toBeInTheDocument();
-		expect(screen.getByText('12,0 kWh')).toBeInTheDocument();
+		expect(screen.getByText('Tue 3 Nov')).toBeInTheDocument();
+		expect(screen.getByText('00:02 · 12,0 kWh')).toBeInTheDocument();
+		expect(screen.queryByText(/peak fee/)).toBeNull();
 		expect(screen.getByText('18,66 kr')).toBeInTheDocument();
 		expect(screen.getByText('1,56 kr/kWh')).toBeInTheDocument();
 		expect(screen.getByRole('link')).toHaveAttribute('href', '/history/abc');
+	});
+
+	it('flags the session’s share of the month’s peak fee', () => {
+		render(<SessionRow session={{ ...base, peakShare: 200 }} />);
+		expect(screen.getByText('+200,00 kr peak fee')).toBeInTheDocument();
 	});
 
 	it('shows pending for an unpriced session', () => {

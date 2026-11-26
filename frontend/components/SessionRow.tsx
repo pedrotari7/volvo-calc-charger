@@ -1,9 +1,9 @@
 import * as stylex from '@stylexjs/stylex';
 import { formatKr, formatKwh } from '@shared/format';
-import { localDateOf } from '@shared/time';
+import { formatDay, formatLocalTime } from '../lib/localTime';
 import type { PricedSession } from '@shared/types';
 import Link from 'next/link';
-import { colors, tint } from '../app/tokens.stylex';
+import { chart, colors, tint } from '../app/tokens.stylex';
 import { Icon } from './Icon';
 import { list } from './List';
 
@@ -25,6 +25,8 @@ const styles = stylex.create({
 	right: { alignItems: 'flex-end', textAlign: 'right' },
 	primary: { fontSize: 17, color: colors.ink },
 	muted: { fontSize: 13, color: colors.muted },
+	peak: { display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 13, color: colors.muted },
+	peakDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: chart.peak },
 	bad: { fontSize: 13, color: colors.bad },
 	good: { fontSize: 13, color: colors.good },
 	pending: { fontSize: 17, color: colors.muted },
@@ -45,8 +47,15 @@ export const SessionRow = ({ session: s }: { session: PricedSession }) => {
 					<Icon name='bolt' size={18} filled strokeWidth={1} />
 				</span>
 				<span {...stylex.props(styles.col)}>
-					<span {...stylex.props(styles.primary)}>{localDateOf(s.startUtc)}</span>
-					<span {...stylex.props(styles.muted)}>{formatKwh(s.kWh)}</span>
+					<span {...stylex.props(styles.primary)}>{formatDay(s.startUtc)}</span>
+					<span {...stylex.props(styles.muted)}>
+						{formatLocalTime(s.startUtc)} · {formatKwh(s.kWh)}
+					</span>
+					{s.peakShare >= 0.5 ? (
+						<span {...stylex.props(styles.peak)}>
+							<span {...stylex.props(styles.peakDot)} />+{formatKr(s.peakShare)} peak fee
+						</span>
+					) : null}
 				</span>
 			</span>
 			<span {...stylex.props(list.value)}>

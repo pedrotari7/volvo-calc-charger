@@ -31,6 +31,19 @@ describe('TonightCard', () => {
 		expect(screen.queryByText(/tomorrow not out yet/i)).toBeNull();
 	});
 
+	it('draws the window on the night, from 18:00 to ready-by', () => {
+		render(<TonightCard plan={plan()} now='2026-11-06T19:00:00.000Z' readyBy='07:00' />);
+		expect(
+			screen.getByRole('img', { name: 'Charging 01:00 to 04:00, between 18:00 and 07:00' })
+		).toBeInTheDocument();
+	});
+
+	it('names the peak fee included in the cost', () => {
+		const rec = { ...cand(11, 30), energyCost: 20, peakIncrease: 10 };
+		render(<TonightCard plan={plan({ recommendation: rec, alternative: null })} />);
+		expect(screen.getByText(/20,0 kWh at 11 kW · 30,00 kr \(incl. 10,00 kr peak fee\)/)).toBeInTheDocument();
+	});
+
 	it('omits the tip when the alternative is not dearer', () => {
 		render(<TonightCard plan={plan({ alternative: cand(11, 18.4) })} />);
 		expect(screen.queryByText(/saves/)).toBeNull();

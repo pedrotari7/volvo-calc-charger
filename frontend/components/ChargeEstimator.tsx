@@ -81,7 +81,62 @@ const styles = stylex.create({
 	},
 	note: { fontSize: 13, color: colors.muted },
 	alert: { fontSize: 17, fontWeight: 600, color: colors.warn },
+	details: { display: 'flex', flexDirection: 'column', gap: 14 },
+	summary: {
+		listStyle: 'none',
+		display: 'flex',
+		alignItems: 'center',
+		justifyContent: 'space-between',
+		gap: 8,
+		cursor: 'pointer',
+		'::-webkit-details-marker': { display: 'none' },
+	},
+	hint: { fontSize: 15, color: colors.muted },
+	chevron: { color: colors.faint, transitionProperty: 'transform', transitionDuration: '0.2s' },
+	chevronOpen: { transform: 'rotate(90deg)' },
+	bars: { display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 },
+	barRow: { display: 'grid', gridTemplateColumns: '108px 1fr auto', alignItems: 'center', gap: 10 },
+	barLabel: { fontSize: 13, color: colors.muted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+	barTrack: { display: 'block', height: 10, borderRadius: 5, backgroundColor: tint.fill, overflow: 'hidden' },
+	barFill: {
+		display: 'block',
+		height: '100%',
+		borderRadius: 5,
+		backgroundColor: colors.faint,
+		transitionProperty: 'width',
+		transitionDuration: '0.5s',
+		transitionTimingFunction: 'cubic-bezier(0.32, 0.72, 0, 1)',
+	},
+	barBest: { backgroundColor: colors.brand },
+	barValue: { fontSize: 13, color: colors.ink, fontVariantNumeric: 'tabular-nums', minWidth: 76, textAlign: 'right' },
 });
+
+interface Bar {
+	label: string;
+	cost: number;
+	best?: boolean;
+}
+
+/** Cost of the cheapest window beside the alternatives, as bars on one scale from 0. */
+const CostBars = ({ rows }: { rows: Bar[] }) => {
+	const max = Math.max(...rows.map(r => r.cost), 0.01);
+	return (
+		<div role='list' aria-label='Cost by start time' {...stylex.props(styles.bars)}>
+			{rows.map(r => (
+				<div role='listitem' key={r.label} {...stylex.props(styles.barRow)}>
+					<span {...stylex.props(styles.barLabel)}>{r.label}</span>
+					<span {...stylex.props(styles.barTrack)}>
+						<span
+							style={{ width: `${Math.max(2, (Math.max(r.cost, 0) / max) * 100)}%` }}
+							{...stylex.props(styles.barFill, r.best && styles.barBest)}
+						/>
+					</span>
+					<span {...stylex.props(styles.barValue)}>{formatKr(r.cost)}</span>
+				</div>
+			))}
+		</div>
+	);
+};
 
 export interface ChargeWindow {
 	start: IsoUtc;
@@ -97,6 +152,8 @@ interface Props {
 	peaksByMonth: Record<string, MonthPeaks>;
 	/** The cheapest window for the current controls, for the price chart to highlight. */
 	onWindow?: (w: ChargeWindow | null) => void;
+	/** Folded away behind a summary line until opened (on Home, where Tonight's plan comes first). */
+	collapsible?: boolean;
 }
 
 const dayName = (iso: IsoUtc, now: IsoUtc): string => {
@@ -128,7 +185,17 @@ const hoursBetween = (fromMs: number, toMs: number): IsoUtc[] => {
 	return out;
 };
 
-export const ChargeEstimator = ({ now, batteryPercent, settings, days, tariffs, peaksByMonth, onWindow }: Props) => {
+export const ChargeEstimator = ({
+	now,
+	batteryPercent,
+	settings,
+	days,
+	tariffs,
+	peaksByMonth,
+	onWindow,
+	collapsible = false,
+}: Props) => {
+	const [open, setOpen] = useState(!collapsible);
 	const [from, setFrom] = useState<number | null>(null);
 	const [to, setTo] = useState<number | null>(null);
 	const [start, setStart] = useState<string>(NOW);
@@ -168,9 +235,11 @@ export const ChargeEstimator = ({ now, batteryPercent, settings, days, tariffs, 
 	);
 	const best = est.best;
 
+	// Folded away, the chart highlights Tonight's plan instead.
+	const shownWindow = open && best ? best : null;
 	useEffect(() => {
-		onWindow?.(best ? { start: best.start, end: best.end } : null);
-	}, [best?.start, best?.end, onWindow]); // eslint-disable-line react-hooks/exhaustive-deps
+		onWindow?.(shownWindow ? { start: shownWindow.start, end: shownWindow.end } : null);
+	}, [shownWindow?.start, shownWindow?.end, onWindow]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	const powerOptions = [
 		['best', 'Cheapest'],
@@ -178,13 +247,14 @@ export const ChargeEstimator = ({ now, batteryPercent, settings, days, tariffs, 
 		...(reduced ? ([['reduced', `${reduced} kW`]] as const) : []),
 	] as const;
 
-	return (
-		<section aria-label='Plan a charge' {...stylex.props(styles.card)}>
-			<h2 {...stylex.props(styles.title)}>
-				<Icon name='bolt' size={15} strokeWidth={1.6} />
-				Plan a charge
-			</h2>
-
+	const title = (
+		<h2 {...stylex.props(styles.title)}>
+			<Icon name='bolt' size={15} strokeWidth={1.6} />
+			Plan a charge
+		</h2>
+	);
+	const body = (
+		<>
 			<div {...stylex.props(styles.controls)}>
 				<label {...stylex.props(styles.sliderRow)}>
 					<span {...stylex.props(styles.row)}>
@@ -256,6 +326,38 @@ export const ChargeEstimator = ({ now, batteryPercent, settings, days, tariffs, 
 			<div aria-live='polite' data-testid='estimate' {...stylex.props(styles.result)}>
 				<Result neededKwh={neededKwh} now={now} est={est} until={until} fromNow={startIso === nowHour} />
 			</div>
+		</>
+	);
+
+	if (!collapsible) {
+		return (
+			<section aria-label='Plan a charge' {...stylex.props(styles.card)}>
+				{title}
+				{body}
+			</section>
+		);
+	}
+	return (
+		<section aria-label='Plan a charge' {...stylex.props(styles.card)}>
+			<details
+				open={open}
+				onToggle={e => setOpen((e.currentTarget as HTMLDetailsElement).open)}
+				{...stylex.props(styles.details)}
+			>
+				<summary {...stylex.props(styles.summary)}>
+					<div>
+						{title}
+						<span {...stylex.props(styles.hint)}>Another time, level or power? Try it here</span>
+					</div>
+					<Icon
+						name='chevronRight'
+						size={18}
+						strokeWidth={2.4}
+						{...stylex.props(styles.chevron, open && styles.chevronOpen)}
+					/>
+				</summary>
+				{open ? body : null}
+			</details>
 		</section>
 	);
 };
@@ -310,10 +412,23 @@ const Result = ({
 			) : est.asap ? (
 				<p {...stylex.props(styles.tip)}>Starting right away is about as cheap as it gets</p>
 			) : null}
-			{est.worst && vsWorst >= 0.5 ? (
-				<p {...stylex.props(styles.note)}>
-					The worst start ({formatLocalTime(est.worst.start)}) would cost {formatKr(est.worst.cost)}
-				</p>
+			{(est.asap && vsNow >= 0.5) || (est.worst && vsWorst >= 0.5) ? (
+				<CostBars
+					rows={[
+						{ label: `Cheapest ${formatLocalTime(best.start)}`, cost: best.cost, best: true },
+						...(est.asap && vsNow >= 0.5
+							? [
+									{
+										label: fromNow ? 'Plug in now' : `Start ${formatLocalTime(est.asap.start)}`,
+										cost: est.asap.cost,
+									},
+								]
+							: []),
+						...(est.worst && vsWorst >= 0.5 && est.worst !== est.asap
+							? [{ label: `Worst ${formatLocalTime(est.worst.start)}`, cost: est.worst.cost }]
+							: []),
+					]}
+				/>
 			) : null}
 			{est.missingPrices && until ? (
 				<p {...stylex.props(styles.note)}>

@@ -44,10 +44,10 @@ describe('HistoryPage', () => {
 	it('groups by month newest first, sessions newest first', () => {
 		render(<HistoryPage />);
 		const headings = screen.getAllByRole('heading', { level: 2 }).map(h => h.textContent);
-		expect(headings).toEqual(['2026-11', '2026-10']);
+		expect(headings).toEqual(['November 2026', 'October 2026']);
 		const hrefs = screen.getAllByRole('link').map(a => a.getAttribute('href'));
 		expect(hrefs).toEqual(['/history/new2', '/history/new1', '/history/old']);
-		expect(screen.getAllByText('Peak fee (estimate)')).toHaveLength(2);
+		expect(screen.getAllByText('Peak fee (estimate)', { exact: false })).toHaveLength(2);
 		expect(screen.getByText('3,00 kr')).toBeInTheDocument();
 	});
 

@@ -39,6 +39,14 @@ export const tint = stylex.defineConsts({
 	bar: 'rgb(22 22 24 / 0.9)',
 });
 
+// Chart series, validated for the dark surface (dataviz validate_palette: lightness band, CVD and contrast
+// pass). Energy vs peak fee always also carry direct labels and a 2px gap (tritan ΔE 7.3).
+export const chart = stylex.defineConsts({
+	energy: '#22a447',
+	peak: '#7d7aff',
+	track: 'rgb(118 118 128 / 0.24)',
+});
+
 export const fonts = stylex.defineVars({
 	sans: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
 	rounded: "ui-rounded, 'SF Pro Rounded', -apple-system, system-ui, sans-serif",
