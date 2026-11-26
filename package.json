@@ -16,6 +16,7 @@
 		"test:rules": "scripts/emulators.sh 'vitest run --config rules/vitest.config.ts' --only firestore --project demo-volvo",
 		"test:e2e": "playwright test",
 		"format": "prettier --write --cache .",
+		"format:check": "prettier --check --cache .",
 		"emulators": "scripts/emulators.sh",
 		"seed": "pnpm --filter backend seed",
 		"dev:e2e": "scripts/e2e-stack.sh",

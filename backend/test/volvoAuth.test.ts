@@ -257,7 +257,11 @@ describe('handleVolvoCallback', () => {
 
 	it('sanitises the OAuth error code and falls back to denied', async () => {
 		await pending();
-		const url = await handleVolvoCallback({ error: '<>!', state: 'good' }, creds, vi.fn() as unknown as typeof fetch);
+		const url = await handleVolvoCallback(
+			{ error: '<>!', state: 'good' },
+			creds,
+			vi.fn() as unknown as typeof fetch
+		);
 		expect(url).toBe(`${home}?volvo=error&reason=denied`);
 	});
 

@@ -43,7 +43,10 @@ export async function handleVolvoCallback(
 	if (Date.parse(pending.expiresAt) < Date.now()) return redirectError('expired');
 	// Pass Volvo's OAuth error code through (e.g. invalid_scope, access_denied) so the cause is visible.
 	if (typeof query.error === 'string') {
-		const code = query.error.toLowerCase().replace(/[^a-z_]/g, '').slice(0, 40);
+		const code = query.error
+			.toLowerCase()
+			.replace(/[^a-z_]/g, '')
+			.slice(0, 40);
 		logger.warn('volvoCallback: Volvo returned an OAuth error', { error: code });
 		return redirectError(code || 'denied');
 	}

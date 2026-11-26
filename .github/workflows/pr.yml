@@ -1,0 +1,56 @@
+name: pr
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    uses: ./.github/workflows/changes.yml
+
+  shared:
+    needs: changes
+    uses: ./.github/workflows/shared.yml
+    with:
+      isShared: ${{ needs.changes.outputs.shared }}
+
+  frontend:
+    needs: changes
+    uses: ./.github/workflows/frontend.yml
+    with:
+      isFrontend: ${{ needs.changes.outputs.frontend }}
+
+  backend:
+    needs: changes
+    uses: ./.github/workflows/backend.yml
+    with:
+      isBackend: ${{ needs.changes.outputs.backend }}
+
+  rules:
+    needs: changes
+    uses: ./.github/workflows/rules.yml
+    with:
+      isRules: ${{ needs.changes.outputs.rules }}
+
+  e2e:
+    needs: changes
+    uses: ./.github/workflows/e2e.yml
+    with:
+      isE2e: ${{ needs.changes.outputs.e2e }}
+
+  typecheck:
+    needs: changes
+    uses: ./.github/workflows/typecheck.yml
+    with:
+      isTypecheck: ${{ needs.changes.outputs.typecheck }}
+
+  format:
+    uses: ./.github/workflows/format.yml

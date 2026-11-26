@@ -1,0 +1,109 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    uses: ./.github/workflows/changes.yml
+
+  shared:
+    needs: changes
+    uses: ./.github/workflows/shared.yml
+    with:
+      isShared: ${{ needs.changes.outputs.shared }}
+
+  frontend:
+    needs: changes
+    uses: ./.github/workflows/frontend.yml
+    with:
+      isFrontend: ${{ needs.changes.outputs.frontend }}
+
+  backend:
+    needs: changes
+    uses: ./.github/workflows/backend.yml
+    with:
+      isBackend: ${{ needs.changes.outputs.backend }}
+
+  rules:
+    needs: changes
+    uses: ./.github/workflows/rules.yml
+    with:
+      isRules: ${{ needs.changes.outputs.rules }}
+
+  e2e:
+    needs: changes
+    uses: ./.github/workflows/e2e.yml
+    with:
+      isE2e: ${{ needs.changes.outputs.e2e }}
+
+  typecheck:
+    needs: changes
+    uses: ./.github/workflows/typecheck.yml
+    with:
+      isTypecheck: ${{ needs.changes.outputs.typecheck }}
+
+  format:
+    uses: ./.github/workflows/format.yml
+
+  # Functions, Firestore rules and indexes, behind every suite: `shared/` is
+  # compiled into the functions, and e2e is the only check that the halves meet.
+  # Skipped (not failed) suites count as passing, hence always() && !failure().
+  #
+  # `--force` answers yes to deleting indexes the file does not list. Production
+  # has none today; add any new one to firestore.indexes.json or this removes it.
+  deploy-backend:
+    needs: [changes, shared, frontend, backend, rules, e2e, typecheck, format]
+    if: >-
+      ${{ always() && !failure() && !cancelled()
+      && (needs.changes.outputs.backend == 'true' || needs.changes.outputs.rules == 'true') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # The CLI runs from the workspace rather than a container action because
+      # the functions predeploy hooks shell out to pnpm.
+      - name: Write service account key
+        run: |
+          printf '%s' "$GCP_SA_KEY" > "$RUNNER_TEMP/gcp-key.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/gcp-key.json" >> "$GITHUB_ENV"
+        env:
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+      - run: pnpm exec firebase deploy --only functions,firestore:rules,firestore:indexes --force --project default
+
+  # Production frontend goes out from here, after the backend, so both halves of
+  # a commit ship behind the same suites and in order. frontend/vercel.json turns
+  # off Vercel's own deploys of `main`; previews for other branches are untouched.
+  # Vercel still runs the build, with the env vars set in the project settings.
+  deploy-frontend:
+    needs: [changes, shared, frontend, backend, rules, e2e, typecheck, format, deploy-backend]
+    if: ${{ always() && !failure() && !cancelled() }}
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_CLI: vercel@59.1.4
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    steps:
+      # The CLI reads .git to stamp the deployment with its commit.
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .nvmrc
+      - name: Deploy
+        run: pnpm dlx $VERCEL_CLI deploy --prod --yes --token=$VERCEL_TOKEN

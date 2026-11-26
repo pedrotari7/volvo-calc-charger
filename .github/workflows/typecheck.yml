@@ -1,0 +1,24 @@
+name: typecheck
+
+on:
+  workflow_call:
+    inputs:
+      isTypecheck:
+        required: true
+        type: string
+
+jobs:
+  typecheck:
+    if: ${{ inputs.isTypecheck == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # The root tsconfig: shared/ test files, rules/ and e2e/ suites, root configs.
+      # Nothing else type-checks those; vitest and Playwright only transpile.
+      - run: pnpm typecheck:root

@@ -54,7 +54,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
 	await testEnv.clearFirestore();
-	await testEnv.withSecurityRulesDisabled(async (ctx) => {
+	await testEnv.withSecurityRulesDisabled(async ctx => {
 		const fs = ctx.firestore();
 		await setDoc(doc(fs, 'config/allowlist'), { emails: [ME] });
 		for (const p of [...READABLE, ...PRIVATE]) {
@@ -64,20 +64,20 @@ beforeEach(async () => {
 });
 
 describe('allowlisted user', () => {
-	it.each(READABLE)('reads %s', async (p) => {
+	it.each(READABLE)('reads %s', async p => {
 		await assertSucceeds(getDoc(doc(asMe(), p)));
 	});
 
-	it.each(CLIENT_WRITABLE)('writes %s', async (p) => {
+	it.each(CLIENT_WRITABLE)('writes %s', async p => {
 		await assertSucceeds(setDoc(doc(asMe(), p), { v: 2 }));
 	});
 
-	it.each(FUNCTION_OWNED)('cannot write %s', async (p) => {
+	it.each(FUNCTION_OWNED)('cannot write %s', async p => {
 		await assertFails(setDoc(doc(asMe(), p), { v: 2 }));
 		await assertFails(deleteDoc(doc(asMe(), p)));
 	});
 
-	it.each(PRIVATE)('cannot read or write %s', async (p) => {
+	it.each(PRIVATE)('cannot read or write %s', async p => {
 		await assertFails(getDoc(doc(asMe(), p)));
 		await assertFails(setDoc(doc(asMe(), p), { v: 2 }));
 	});
@@ -97,11 +97,11 @@ describe('allowlisted user', () => {
 });
 
 describe('non-allowlisted callers', () => {
-	it.each([...READABLE, ...PRIVATE])('stranger cannot read %s', async (p) => {
+	it.each([...READABLE, ...PRIVATE])('stranger cannot read %s', async p => {
 		await assertFails(getDoc(doc(asStranger(), p)));
 	});
 
-	it.each(CLIENT_WRITABLE)('stranger cannot write %s', async (p) => {
+	it.each(CLIENT_WRITABLE)('stranger cannot write %s', async p => {
 		await assertFails(setDoc(doc(asStranger(), p), { v: 2 }));
 	});
 
@@ -110,7 +110,7 @@ describe('non-allowlisted callers', () => {
 	});
 
 	it('missing allowlist doc denies reads', async () => {
-		await testEnv.withSecurityRulesDisabled((ctx) => deleteDoc(doc(ctx.firestore(), 'config/allowlist')));
+		await testEnv.withSecurityRulesDisabled(ctx => deleteDoc(doc(ctx.firestore(), 'config/allowlist')));
 		await assertFails(getDoc(doc(asMe(), 'car/state')));
 	});
 

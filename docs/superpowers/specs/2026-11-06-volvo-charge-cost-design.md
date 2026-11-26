@@ -15,7 +15,7 @@ Success looks like: every Zaptec session appears in History within ~10 minutes o
 ## 2. Decisions
 
 | Area | Decision |
-|---|---|
+| --- | --- |
 | Users | Owner + household. Google sign-in, gated by an email allowlist. |
 | Car | Volvo XC40/C40 Recharge (full EV). Shows battery, range, charging state, locks, doors, windows, tailgate, tyres, warnings, service, odometer, location, trip statistics. |
 | Car commands | **Lock** and **start/stop climate** only. **No unlock**, no engine start, no honk/flash. The `conve:unlock` scope is never requested. |
@@ -34,6 +34,7 @@ Success looks like: every Zaptec session appears in History within ~10 minutes o
 **Spot prices — verified live.** `GET https://www.elprisetjustnu.se/api/v1/prices/YYYY/MM-DD_SE3.json`, no key. Returns 96 rows `{SEK_per_kWh, EUR_per_kWh, EXR, time_start, time_end}`, quarter-hour resolution, local time with offset, **excluding VAT**. Tomorrow's prices are published around 13:00.
 
 **Zaptec — verified live against the owner's account.**
+
 - Auth: `POST https://api.zaptec.com/oauth/token`, `grant_type=password`. Token lifetime observed **86,399 s (24 h)**. Zaptec has announced the password grant will be phased out, so auth is isolated in one module.
 - `GET /api/chargers` returns the one charger (online, active, has an `InstallationId`).
 - `GET /api/chargehistory?DetailLevel=1&PageSize=..&SortDescending=true` returns paged sessions (38 at spike time) with `id, startDateTime, endDateTime, energy, energyDetails[]`.
@@ -44,6 +45,7 @@ Success looks like: every Zaptec session appears in History within ~10 minutes o
 - Observed draw: ~10 kW in one hour. Because of the peak fee this matters more than the spot price (see §6.3).
 
 **Volvo — documentation only; live calls blocked.** Developer-portal test tokens failed (Volvo ID login error) and `localhost` could not be registered as a redirect URI.
+
 - Auth: OAuth 2.0 authorisation code + **PKCE S256 (enforced for new apps)**. Authorise `https://auth.volvocars.com/realms/volvocars/protocol/openid-connect/auth`, token `https://auth.volvocars.com/realms/volvocars/protocol/openid-connect/token`, client auth via `Authorization: Basic base64(client_id:client_secret)`. The old `volvoid.eu.volvocars.com` service stops working after 2027-01-31 and is not used.
 - **Refresh token rotation**: every refresh returns a new refresh token and invalidates the old one. **Grant lasts at most 3 months**, then the user must sign in again. Users should tick "Remember me".
 - API calls need `Authorization: Bearer` + `vcc-api-key` header. Free tier 10,000 calls/day.
@@ -70,7 +72,7 @@ There is no API layer. The one HTTP entry point is the Volvo OAuth callback: the
 ### 4.1 Functions
 
 | Function | Trigger | Responsibility |
-|---|---|---|
+| --- | --- | --- |
 | `fetchPrices` | 13:30, 14:30, then hourly until tomorrow is present; also fills any missing day in the last 7 | Write `prices/{date}`. Re-price `pending` sessions whose hours are now covered. Trigger the planner when tomorrow's prices first land. |
 | `pollZaptec` | Every 5 min | Fetch latest history page and charger state. Upsert sessions by Zaptec id (idempotent, so missed polls catch up). On a new completed session with energy > 0: price it, update `peaks/{month}`, send "session done". Also update `charger/state` (plugged in, charging, live kW). |
 | `pollCar` | Every 10 min | Refresh Volvo token if needed, fetch snapshot endpoints, write `car/state`, upsert `car/odometer/{date}`. Evaluate "car left open". |
@@ -178,7 +180,7 @@ Mobile first; four tabs (top bar on desktop, as in `frescati`).
 FCM web push. iOS requires the PWA to be installed to the Home Screen.
 
 | Push | Trigger | Dedupe |
-|---|---|---|
+| --- | --- | --- |
 | Plug in | `planTonight`: battery < target and not plugged in | Once per evening |
 | Session done | Zaptec session completes with energy > 0 | Once per session |
 | Car left open | `pollCar` between 22:00 and 06:00 local (taken to mean parked for the night), any unlocked lock or open door/window/tailgate/hood/sunroof | Once per distinct issue set until it changes |
@@ -187,7 +189,7 @@ FCM web push. iOS requires the PWA to be installed to the Home Screen.
 ## 9. Error handling
 
 | Failure | Behaviour |
-|---|---|
+| --- | --- |
 | Spot prices unavailable | Retry hourly. Sessions become `pending` and are re-priced later. Planner shows prices not yet available. No second price source in v1. |
 | Zaptec auth/API failure | Retry on next poll. Idempotent upsert means no data loss. Banner "Charger data delayed" after 60 minutes without a successful poll. |
 | Volvo refresh failure | Store `lastRefreshError`, stop `pollCar`, show "Reconnect Volvo", send push. |

@@ -1,3 +1,6 @@
 pnpm-lock.yaml
 .claude/
 .superpowers/
+
+# Captured API responses, kept exactly as the APIs sent them.
+backend/test/fixtures/
