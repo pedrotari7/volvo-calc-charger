@@ -8,4 +8,4 @@ export { fetchPrices, fetchPricesHourly } from './fetchPrices';
 export { pollZaptec } from './pollZaptec';
 export { pollCar } from './pollCar';
 export { planTonight } from './planTonight';
-export { lockCar, startClimate, stopClimate } from './commands';
+export { carCommand, lockCar, startClimate, stopClimate } from './commands';

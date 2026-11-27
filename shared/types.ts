@@ -128,7 +128,33 @@ export interface CarState {
 	odometerKm: Timed<number> | null;
 	location: Timed<{ lat: number; lng: number }> | null;
 	trips: Timed<Record<string, number>> | null;
+	/** Whether the car can take remote commands right now (Volvo's command-accessibility). */
+	access?: Timed<{ available: boolean; reason: string | null }> | null;
 	updatedAt: IsoUtc;
+}
+
+/** Volvo render angles (Home Assistant's names), plus the interior. */
+export type CarViewName =
+	| 'front_left'
+	| 'front'
+	| 'front_right'
+	| 'side_right'
+	| 'back_right'
+	| 'back'
+	| 'back_left'
+	| 'side_left'
+	| 'interior';
+
+export interface CarView {
+	view: CarViewName;
+	url: string;
+}
+
+/** car/remote: what the app last asked the car to do, written by the command callable. */
+export interface RemoteState {
+	last: { command: string; ok: boolean; status: string; at: IsoUtc } | null;
+	/** When a remote climate start last succeeded; null after a stop. */
+	climateStartedAt: IsoUtc | null;
 }
 
 /** What the car is, from Volvo's vehicle details. Changes rarely; refreshed about once a day. */
@@ -139,6 +165,10 @@ export interface CarProfile {
 	colour: string | null;
 	/** Volvo's render of this exact car (paint, wheels), https only. */
 	imageUrl: string | null;
+	/** The same render from other angles, and the interior. Some angles may not exist for every car. */
+	views?: CarView[];
+	/** Command keys the car supports (`LOCK`, `HONK`…) from GET /commands; null when unknown. */
+	commands?: string[] | null;
 	fetchedAt: IsoUtc;
 }
 

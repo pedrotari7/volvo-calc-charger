@@ -18,8 +18,9 @@ const PrivacyPage = () => (
 				<li>Vehicle location</li>
 			</ul>
 			<p>
-				The app can also send two commands, lock and climate start or stop. Only the last four characters of the
-				VIN are shown in the app.
+				The app can also send commands: lock, climate start or stop, and honk or flash the lights. It reads
+				which commands the car supports and whether it can take one right now. Only the last four characters of
+				the VIN are shown in the app.
 			</p>
 		</Section>
 		<Section title='Other data'>

@@ -1,4 +1,4 @@
-import type { CarProfile, CarState, IsoUtc, Timed } from './types';
+import type { CarProfile, CarState, CarView, CarViewName, IsoUtc, Timed } from './types';
 
 type Obj = Record<string, unknown>;
 interface Entry {
@@ -209,22 +209,91 @@ export function tuneCarImageUrl(raw: string): string | null {
 	return url.toString();
 }
 
-/** The car's model, year, paint and picture from GET /connected-vehicle/v2/vehicles/{vin}; null if none of it is there. */
-export function parseCarProfile(details: unknown, nowUtc: IsoUtc): CarProfile | null {
+// Volvo's render angles, as Home Assistant's Volvo integration maps them (homeassistant/components/volvo/services.py).
+// The `angle` query parameter works on the usual render host; the "wizz" host names the angle in the path
+// instead and only has some of them.
+const ANGLES: Array<[Exclude<CarViewName, 'interior'>, string, string | null]> = [
+	['front_left', '4', 'threeQuartersFrontLeft'],
+	['front', '3', 'front'],
+	['front_right', '0', null],
+	['side_right', '1', 'right'],
+	['back_right', '2', null],
+	['back', '6', 'rear'],
+	['back_left', '5', 'threeQuartersRearLeft'],
+	['side_left', '7', 'left'],
+];
+
+function angleUrl(exterior: URL, angle: string, wizzName: string | null): string | null {
+	const url = new URL(exterior.toString());
+	if (url.hostname.startsWith('wizz')) {
+		if (!wizzName) return null;
+		const parts = url.pathname.split('/');
+		if (parts.length < 2) return null;
+		parts[parts.length - 2] = wizzName;
+		url.pathname = parts.join('/');
+		return url.toString();
+	}
+	url.searchParams.set('angle', angle);
+	return url.toString();
+}
+
+/**
+ * The car from every angle Volvo may render, then the interior. Not every angle exists for every car; the page
+ * drops pictures that fail to load.
+ */
+export function carImageViews(exteriorRaw: string | null, interiorRaw: string | null): CarView[] {
+	const views: CarView[] = [];
+	const exterior = exteriorRaw ? tuneCarImageUrl(exteriorRaw) : null;
+	if (exterior) {
+		const base = new URL(exterior);
+		for (const [view, angle, wizzName] of ANGLES) {
+			const url = angleUrl(base, angle, wizzName);
+			if (url) views.push({ view, url });
+		}
+	}
+	const interior = interiorRaw ? tuneCarImageUrl(interiorRaw) : null;
+	if (interior) views.push({ view: 'interior', url: interior });
+	return views;
+}
+
+/** Command keys (`LOCK`, `HONK_AND_FLASH`…) from GET /connected-vehicle/v2/vehicles/{vin}/commands; null if absent. */
+export function parseSupportedCommands(body: unknown): string[] | null {
+	const list = isObj(body) ? body.data : undefined;
+	if (!Array.isArray(list)) return null;
+	const keys = list.map(c => (isObj(c) ? str(c.command) : null)).filter((c): c is string => c !== null);
+	return [...new Set(keys)];
+}
+
+/** The car's model, year, paint and pictures from GET /connected-vehicle/v2/vehicles/{vin}; null if none of it is there. */
+export function parseCarProfile(details: unknown, nowUtc: IsoUtc, commands?: unknown): CarProfile | null {
 	const d = dataOf(details);
 	if (!d) return null;
 	const descriptions = isObj(d.descriptions) ? d.descriptions : {};
 	const images = isObj(d.images) ? d.images : {};
 	const image = str(images.exteriorImageUrl);
+	const views = carImageViews(image, str(images.internalImageUrl));
 	const profile: CarProfile = {
 		model: str(descriptions.model),
 		modelYear: typeof d.modelYear === 'number' && Number.isFinite(d.modelYear) ? d.modelYear : null,
 		colour: str(d.externalColour),
 		imageUrl: image ? tuneCarImageUrl(image) : null,
+		views,
+		commands: commands === undefined ? null : parseSupportedCommands(commands),
 		fetchedAt: nowUtc,
 	};
-	const { fetchedAt: _, ...rest } = profile;
-	return Object.values(rest).some(v => v !== null) ? profile : null;
+	const known = [profile.model, profile.modelYear, profile.colour, profile.imageUrl];
+	return known.some(v => v !== null) || views.length > 0 ? profile : null;
+}
+
+function parseAccess(accessibility: unknown, now: IsoUtc): NonNullable<CarState['access']> | null {
+	const d = dataOf(accessibility);
+	const raw = d?.availabilityStatus;
+	const e = entry(raw);
+	if (!e) return null;
+	const available = e.value === 'AVAILABLE' ? true : e.value === 'UNAVAILABLE' ? false : null;
+	if (available === null) return null;
+	const reason = isObj(raw) ? str(raw.unavailableReason) : null;
+	return timed({ available, reason: available ? null : reason }, [e], now);
 }
 
 export function parseCarState(
@@ -239,6 +308,7 @@ export function parseCarState(
 		location?: unknown;
 		diagnostics?: unknown;
 		statistics?: unknown;
+		accessibility?: unknown;
 	},
 	nowUtc: IsoUtc
 ): CarState {
@@ -257,6 +327,7 @@ export function parseCarState(
 		odometerKm: guard(() => parseOdometer(raw.odometer, nowUtc)),
 		location: guard(() => parseLocation(raw.location, nowUtc)),
 		trips: guard(() => parseTrips(raw.statistics, nowUtc)),
+		access: guard(() => parseAccess(raw.accessibility, nowUtc)),
 		updatedAt: nowUtc,
 	};
 }

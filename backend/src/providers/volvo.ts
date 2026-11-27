@@ -1,4 +1,6 @@
 import { logger } from 'firebase-functions/v2';
+import type { CarCommand } from '../../../shared/commands';
+import { isCarCommand } from '../../../shared/commands';
 import type { FetchFn } from './volvoAuth';
 
 export const VOLVO_BASE = 'https://api.volvocars.com';
@@ -15,14 +17,15 @@ export const vehiclePaths = {
 	section: (vin: string, name: string) => `/connected-vehicle/v2/vehicles/${vin}/${name}`,
 	energy: (vin: string) => `/energy/v2/vehicles/${vin}/state`,
 	location: (vin: string) => `/location/v1/vehicles/${vin}/location`,
+	commands: (vin: string) => `/connected-vehicle/v2/vehicles/${vin}/commands`,
+	accessibility: (vin: string) => `/connected-vehicle/v2/vehicles/${vin}/command-accessibility`,
 	command: (vin: string, name: string) => `/connected-vehicle/v2/vehicles/${vin}/commands/${name}`,
 };
 
 export type SectionName = 'doors' | 'windows' | 'odometer' | 'tyres' | 'warnings' | 'diagnostics' | 'statistics';
-export type CommandName = 'lock' | 'climatization-start' | 'climatization-stop';
+export type CommandName = CarCommand;
 export type CommandResult = { ok: boolean; status: string; message?: string };
 
-const COMMANDS: readonly string[] = ['lock', 'climatization-start', 'climatization-stop'];
 const COMMAND_OK = new Set(['COMPLETED', 'DELIVERED']);
 
 export interface VolvoClient {
@@ -31,6 +34,10 @@ export interface VolvoClient {
 	section(vin: string, name: SectionName): Promise<unknown>;
 	energy(vin: string): Promise<unknown>;
 	location(vin: string): Promise<unknown>;
+	/** GET /commands: what this car supports. */
+	commands(vin: string): Promise<unknown>;
+	/** GET /command-accessibility: whether the car can take commands now. */
+	accessibility(vin: string): Promise<unknown>;
 	command(vin: string, name: CommandName): Promise<CommandResult>;
 }
 
@@ -80,8 +87,10 @@ export function createVolvoClient(
 		section: (vin, name) => read(name, vehiclePaths.section(vin, name)),
 		energy: vin => read('energy', vehiclePaths.energy(vin), ENERGY_ACCEPT),
 		location: vin => read('location', vehiclePaths.location(vin)),
+		commands: vin => read('commands', vehiclePaths.commands(vin)),
+		accessibility: vin => read('command-accessibility', vehiclePaths.accessibility(vin)),
 		async command(vin, name) {
-			if (!COMMANDS.includes(name)) throw new Error(`Unsupported Volvo command: ${String(name)}`);
+			if (!isCarCommand(name)) throw new Error(`Unsupported Volvo command: ${String(name)}`);
 			const r = await call(`command:${name}`, vehiclePaths.command(vin, name), JSON_ACCEPT, {
 				method: 'POST',
 				headers: { 'Content-Type': JSON_ACCEPT },

@@ -2,8 +2,10 @@
 
 import * as stylex from '@stylexjs/stylex';
 import { formatAgo } from '@shared/format';
-import type { CarState } from '@shared/types';
+import type { CarProfile, CarState } from '@shared/types';
 import type { ReactNode } from 'react';
+import { CarDiagram } from '../../../components/CarDiagram';
+import { CarGallery } from '../../../components/CarGallery';
 import { CellText, Group, list } from '../../../components/List';
 import { Screen } from '../../../components/Screen';
 import { Note } from '../../../components/Spinner';
@@ -185,6 +187,7 @@ const NotAvailable = () => <CellText>Not available</CellText>;
 const CarPage = () => {
 	const now = useNow();
 	const { data: car, loading, error } = useDoc<CarState>('car/state');
+	const { data: profile } = useDoc<CarProfile>('car/profile');
 
 	if (error) {
 		return (
@@ -206,6 +209,8 @@ const CarPage = () => {
 
 	return (
 		<Screen title='Car'>
+			<CarGallery profile={profile} />
+			<CarDiagram car={car} />
 			<Glance car={car} />
 			<Section title='Openings' at={car?.openings?.at} now={now}>
 				{car?.openings && Object.keys(car.openings.value).length ? (

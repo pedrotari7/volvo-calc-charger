@@ -8,6 +8,7 @@ import { db } from '../lib/firebase';
  * list must stay a subset of what that server defines (see `volvocarsapi.scopes`, used by Home
  * Assistant). The old Energy v1 scopes (`energy:battery_charge_level`, `energy:recharge_status`,
  * …) and `conve:recharge_status` do not exist there. `conve:unlock` is deliberately absent.
+ * `conve:honk_flash` is restricted: the app must have it enabled in the Volvo developer portal.
  */
 export const VOLVO_SCOPES = [
 	'openid',
@@ -25,6 +26,7 @@ export const VOLVO_SCOPES = [
 	'conve:commands',
 	'conve:lock',
 	'conve:climatization_start_stop',
+	'conve:honk_flash',
 	'energy:state:read',
 	'energy:capability:read',
 	'location:read',

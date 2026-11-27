@@ -41,6 +41,9 @@ service cloud.firestore {
     match /car/profile {
       allow read: if isAllowed();
     }
+    match /car/remote {
+      allow read: if isAllowed();
+    }
     match /odometer/{id} {
       allow read: if isAllowed();
     }

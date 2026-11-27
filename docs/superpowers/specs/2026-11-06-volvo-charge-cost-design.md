@@ -18,7 +18,7 @@ Success looks like: every Zaptec session appears in History within ~10 minutes o
 | --- | --- |
 | Users | Owner + household. Google sign-in, gated by an email allowlist. |
 | Car | Volvo XC40/C40 Recharge (full EV). Shows battery, range, charging state, locks, doors, windows, tailgate, tyres, warnings, service, odometer, location, trip statistics. |
-| Car commands | **Lock** and **start/stop climate** only. **No unlock**, no engine start, no honk/flash. The `conve:unlock` scope is never requested. |
+| Car commands | **Lock** (also with reduced guard), **start/stop climate**, and **honk / flash / honk-and-flash** to find the car, each shown only when Volvo's `GET /commands` lists it (lock and climate show until that list is known). **No unlock**, no engine start. The `conve:unlock` scope is never requested; `conve:honk_flash` is (added 2026-11-27). |
 | Charger | Zaptec at the owner's house, on the house meter. Source of truth for energy per session. |
 | Electricity contract | Fortum timpris/kvartspris: SE3 spot + Fortum markup + monthly fee + VAT. |
 | Grid tariff | Nacka Energi house tariff: fixed fee, low/high-load transfer fee, energy tax, peak fee (effektavgift) on the average of the month's top-3 hourly kW. All values are configuration with an effective-from date. |
@@ -79,7 +79,7 @@ There is no API layer. The one HTTP entry point is the Volvo OAuth callback: the
 | `planTonight` | 18:00 and after tomorrow's prices land | Write `plans/{date}`. Send "plug in" if battery < target and not plugged in, once per evening. |
 | `volvoAuthStart` | Callable (allowlisted) | Build authorise URL with PKCE + state. |
 | `volvoCallback` | HTTPS | Validate state, exchange code, store tokens in `private/volvo`, redirect to `/settings`. |
-| `lockCar`, `startClimate`, `stopClimate` | Callable (allowlisted) | Send the Volvo command and return the result. No automatic retries. |
+| `carCommand` (`{ command }`), and the older `lockCar`, `startClimate`, `stopClimate` | Callable (allowlisted) | Send the Volvo command, record it in `car/remote` (last command, climate start time), and return the result. No automatic retries. |
 
 Volvo call budget: ~7 endpoints × 144 polls ≈ 1,000/day, well inside 10,000.
 
@@ -173,7 +173,7 @@ Mobile first; four tabs (top bar on desktop, as in `frescati`).
 - **Car**: doors/windows/tailgate, tyres, warnings, service, odometer, static map with "Open in Maps", trip statistics.
 - **History**: session list (date, kWh, kr, kr/kWh, planned vs actual). Session detail: hourly breakdown and peak share. Monthly totals: kWh, kr, avg kr/kWh, kr/100 km, petrol comparison, peak fee estimate.
 - **Settings**: target and ready-by, battery/charger values, tariffs (new rows with effective-from; history kept), petrol values, notification toggles, Volvo connection status ("valid until …", Reconnect), household allowlist.
-- **Public**: `/terms` and `/privacy`, static, reachable without sign-in. Terms cover: private non-commercial household app, what data is read, the only commands are lock and climate, storage in Firebase europe-west1, revocation via Volvo ID, estimates are not invoices, contact address.
+- **Public**: `/terms` and `/privacy`, static, reachable without sign-in. Terms cover: private non-commercial household app, what data is read, the only commands are lock, climate and honk/flash (never unlock), storage in Firebase europe-west1, revocation via Volvo ID, estimates are not invoices, contact address.
 
 ## 8. Notifications
 

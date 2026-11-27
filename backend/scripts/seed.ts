@@ -109,12 +109,13 @@ async function main(): Promise<void> {
 		location: readJson('volvo', 'location.json'),
 		diagnostics: readJson('volvo', 'diagnostics.json'),
 		statistics: readJson('volvo', 'statistics.json'),
+		accessibility: readJson('volvo', 'command-accessibility.json'),
 	};
 	const car = parseCarState(raw, now);
 	await db.doc('car/state').set(car);
-	// The fixture's picture points at an unreachable host, so the seeded profile has none.
-	const profile = parseCarProfile(readJson('volvo', 'details.json'), now);
-	if (profile) await db.doc('car/profile').set({ ...profile, imageUrl: null });
+	// The fixture's pictures point at an unreachable host, so the seeded profile has none.
+	const profile = parseCarProfile(readJson('volvo', 'details.json'), now, readJson('volvo', 'commands.json'));
+	if (profile) await db.doc('car/profile').set({ ...profile, imageUrl: null, views: [] });
 	if (car.odometerKm) {
 		await db
 			.doc(`odometer/${localDateOf(car.odometerKm.at)}`)

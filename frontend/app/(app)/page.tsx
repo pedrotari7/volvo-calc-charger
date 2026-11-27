@@ -3,7 +3,17 @@
 import * as stylex from '@stylexjs/stylex';
 import { allInRateInclVat } from '@shared/pricing';
 import { addHours, eveningDateOf, floorHourUtc, localParts, monthKey } from '@shared/time';
-import type { CarProfile, CarState, ChargerState, MonthPeaks, PriceDay, Plan, Settings, Tariff } from '@shared/types';
+import type {
+	CarProfile,
+	CarState,
+	ChargerState,
+	MonthPeaks,
+	PriceDay,
+	Plan,
+	RemoteState,
+	Settings,
+	Tariff,
+} from '@shared/types';
 import { withDefaultSettings } from '@shared/types';
 import { documentId, where } from 'firebase/firestore';
 import { useMemo, useState } from 'react';
@@ -32,6 +42,7 @@ const HomePage = () => {
 
 	const car = useDoc<CarState>('car/state');
 	const profile = useDoc<CarProfile>('car/profile');
+	const remote = useDoc<RemoteState>('car/remote');
 	const charger = useDoc<ChargerState>('charger/state');
 	const plan = useDoc<Plan>(`plans/${eveningDate}`);
 	const zaptec = useDoc<{ lastOkAt?: string }>('status/zaptec');
@@ -100,7 +111,13 @@ const HomePage = () => {
 					/>
 				</>
 			)}
-			<CommandButtons locked={car.data?.locked?.value ?? null} />
+			<CommandButtons
+				locked={car.data?.locked?.value ?? null}
+				commands={profile.data?.commands ?? null}
+				remote={remote.data}
+				access={car.data?.access ?? null}
+				now={now}
+			/>
 		</Screen>
 	);
 };

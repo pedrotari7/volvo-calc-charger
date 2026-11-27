@@ -30,7 +30,7 @@ const reconnectPush = (kind: 'failed' | 'due', grantStartedAt: string) =>
 const PROFILE_MAX_AGE_MS = 24 * 3_600_000;
 
 /**
- * Refreshes car/profile (model, paint, picture) when it is missing or a day old. Best effort: the car
+ * Refreshes car/profile (model, paint, pictures, supported commands) when it is missing or a day old. Best effort: the car
  * poll never fails because of it, and a failed fetch keeps the previous profile.
  */
 async function refreshProfile(client: VolvoClient, vin: string, nowUtc: IsoUtc): Promise<void> {
@@ -38,9 +38,9 @@ async function refreshProfile(client: VolvoClient, vin: string, nowUtc: IsoUtc):
 		const ref = db.doc('car/profile');
 		const fetchedAt = (await ref.get()).data()?.fetchedAt;
 		if (typeof fetchedAt === 'string' && Date.parse(nowUtc) - Date.parse(fetchedAt) < PROFILE_MAX_AGE_MS) return;
-		const details = await client.details(vin);
+		const [details, commands] = await Promise.all([client.details(vin), client.commands(vin)]);
 		if (details === undefined) return;
-		const profile = parseCarProfile(details, nowUtc);
+		const profile = parseCarProfile(details, nowUtc, commands);
 		if (!profile) {
 			const keys = details && typeof details === 'object' ? Object.keys(details) : [typeof details];
 			logger.warn('pollCar: vehicle details had no profile fields', { keys });
@@ -71,7 +71,7 @@ export async function runPollCar(nowUtc: IsoUtc, deps: PollCarDeps): Promise<voi
 			return;
 		}
 		vin = first;
-		const [doors, windows, odometer, tyres, warnings, diagnostics, statistics, energy, location] =
+		const [doors, windows, odometer, tyres, warnings, diagnostics, statistics, energy, location, accessibility] =
 			await Promise.all([
 				client.section(vin, 'doors'),
 				client.section(vin, 'windows'),
@@ -82,8 +82,21 @@ export async function runPollCar(nowUtc: IsoUtc, deps: PollCarDeps): Promise<voi
 				client.section(vin, 'statistics'),
 				client.energy(vin),
 				client.location(vin),
+				client.accessibility(vin),
 			]);
-		raw = { vehicles, doors, windows, odometer, tyres, warnings, diagnostics, statistics, energy, location };
+		raw = {
+			vehicles,
+			doors,
+			windows,
+			odometer,
+			tyres,
+			warnings,
+			diagnostics,
+			statistics,
+			energy,
+			location,
+			accessibility,
+		};
 		const sections = [doors, windows, odometer, tyres, warnings, diagnostics, statistics, energy, location];
 		if (sections.every(s => s === undefined)) {
 			logger.warn('pollCar: every section failed; keeping previous car/state');

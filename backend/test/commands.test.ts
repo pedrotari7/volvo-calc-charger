@@ -35,8 +35,14 @@ beforeEach(async () => {
 });
 
 describe('commands module', () => {
-	it('exports only the three callables and the injectable core', () => {
-		expect(Object.keys(commands).sort()).toEqual(['lockCar', 'runCommand', 'startClimate', 'stopClimate']);
+	it('exports the callables and the injectable core', () => {
+		expect(Object.keys(commands).sort()).toEqual([
+			'carCommand',
+			'lockCar',
+			'runCommand',
+			'startClimate',
+			'stopClimate',
+		]);
 	});
 });
 
@@ -56,10 +62,49 @@ describe('runCommand', () => {
 		expect(String(p[0][0])).toBe(`https://api.volvocars.com/connected-vehicle/v2/vehicles/${VIN}/commands/lock`);
 	});
 
-	it.each(['climatization-start', 'climatization-stop'] as const)('posts %s', async name => {
+	it.each([
+		'climatization-start',
+		'climatization-stop',
+		'lock-reduced-guard',
+		'honk',
+		'flash',
+		'honk-flash',
+	] as const)('posts %s', async name => {
 		const { fetchFn, deps } = setup(json(200, { data: { invokeStatus: 'DELIVERED' } }));
 		expect((await runCommand(auth('me@x.se'), name, deps)).ok).toBe(true);
 		expect(String(posts(fetchFn)[0][0])).toMatch(new RegExp(`/commands/${name}$`));
+	});
+
+	it('refuses unlock and other unknown commands before any Volvo call', async () => {
+		const { fetchFn, deps } = setup(json(200, {}));
+		await expect(runCommand(auth('me@x.se'), 'unlock' as never, deps)).rejects.toMatchObject({
+			code: 'invalid-argument',
+		});
+		expect(fetchFn).not.toHaveBeenCalled();
+	});
+
+	it('remembers the last command and whether climate is running in car/remote', async () => {
+		const at = '2026-11-27T07:00:00.000Z' as const;
+		const { deps } = setup(() => json(200, { data: { invokeStatus: 'COMPLETED' } }));
+		await db.doc('car/remote').delete();
+		await runCommand(auth('me@x.se'), 'climatization-start', { ...deps, now: () => at });
+		expect((await db.doc('car/remote').get()).data()).toEqual({
+			last: { command: 'climatization-start', ok: true, status: 'COMPLETED', at },
+			climateStartedAt: at,
+		});
+		await runCommand(auth('me@x.se'), 'honk', { ...deps, now: () => at });
+		expect((await db.doc('car/remote').get()).data()?.climateStartedAt).toBe(at);
+		await runCommand(auth('me@x.se'), 'climatization-stop', { ...deps, now: () => at });
+		expect((await db.doc('car/remote').get()).data()?.climateStartedAt).toBeNull();
+	});
+
+	it('does not mark climate as running when the start fails', async () => {
+		const { deps } = setup(json(422, { data: { invokeStatus: 'REJECTED' } }));
+		await db.doc('car/remote').delete();
+		await runCommand(auth('me@x.se'), 'climatization-start', deps);
+		const remote = (await db.doc('car/remote').get()).data();
+		expect(remote?.last).toMatchObject({ command: 'climatization-start', ok: false, status: 'REJECTED' });
+		expect(remote?.climateStartedAt).toBeUndefined();
 	});
 
 	it('returns ok:false with the message on a Volvo 4xx and never retries', async () => {

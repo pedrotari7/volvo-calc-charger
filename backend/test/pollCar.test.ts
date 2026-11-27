@@ -33,6 +33,8 @@ function stubClient(over: Overrides = {}): VolvoClient {
 		section: vi.fn(async (_vin: string, name: string) => sections[name]),
 		energy: vi.fn(async () => fx('energy-state')),
 		location: vi.fn(async () => fx('location')),
+		commands: vi.fn(async () => fx('commands')),
+		accessibility: vi.fn(async () => fx('command-accessibility')),
 		command: vi.fn(),
 		...over,
 	} as unknown as VolvoClient;
@@ -61,7 +63,10 @@ describe('runPollCar', () => {
 		await runPollCar(NOON, { client });
 		const profile = (await db.doc('car/profile').get()).data();
 		expect(profile).toMatchObject({ model: 'XC40', colour: 'Fjord Blue', modelYear: 2023, fetchedAt: NOON });
+		expect(profile?.commands).toContain('LOCK_REDUCED_GUARD');
+		expect(profile?.views).toHaveLength(9);
 		expect(JSON.stringify(profile)).not.toContain(FULL_VIN);
+		expect((await db.doc('car/state').get()).data()?.access?.value).toEqual({ available: true, reason: null });
 
 		await runPollCar('2026-11-06T12:00:00.000Z', { client });
 		expect(client.details).toHaveBeenCalledTimes(1);

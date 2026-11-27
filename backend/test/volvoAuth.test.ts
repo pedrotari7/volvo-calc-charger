@@ -44,7 +44,7 @@ describe('buildAuthorizeUrl', () => {
 
 	it('requests only scopes the new Volvo ID server knows, and never unlock', () => {
 		const scopes = VOLVO_SCOPES.split(' ');
-		expect(scopes).toHaveLength(18);
+		expect(scopes).toHaveLength(19);
 		expect(scopes.filter(s => /^energy:(?!state:read$|capability:read$)/.test(s))).toEqual([]);
 		expect(scopes).not.toContain('conve:recharge_status');
 		expect(url).not.toContain('conve:unlock');

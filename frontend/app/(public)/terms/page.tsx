@@ -21,8 +21,10 @@ const TermsPage = () => (
 		</Section>
 		<Section title='What the app can do to the car'>
 			<p>
-				The only commands the app sends are lock and climate (start or stop cabin climatisation). The app never
-				unlocks the car and does not request the permission needed to do so.
+				The only commands the app sends are lock (normally, or with the interior motion sensors off), climate
+				(start or stop cabin climatisation), and honk the horn or flash the lights to find the car. Each one is
+				sent only when you press it and confirm. The app never unlocks the car and does not request the
+				permission needed to do so.
 			</p>
 		</Section>
 		<Section title='Where data is stored'>

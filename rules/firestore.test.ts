@@ -15,6 +15,7 @@ const asStranger = () =>
 const READABLE = [
 	'car/state',
 	'car/profile',
+	'car/remote',
 	'odometer/2026-11-03',
 	'sessions/a',
 	'prices/2026-11-03',
@@ -32,6 +33,7 @@ const FUNCTION_OWNED = [
 	'sessions/a',
 	'car/state',
 	'car/profile',
+	'car/remote',
 	'odometer/2026-11-03',
 	'plans/x',
 	'peaks/x',

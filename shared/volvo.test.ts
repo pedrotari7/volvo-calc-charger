@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { IsoUtc } from './types';
-import { parseCarProfile, parseCarState, tuneCarImageUrl } from './volvo';
+import { carImageViews, parseCarProfile, parseCarState, parseSupportedCommands, tuneCarImageUrl } from './volvo';
+import commands from '../backend/test/fixtures/volvo/commands.json';
+import accessibility from '../backend/test/fixtures/volvo/command-accessibility.json';
 import details from '../backend/test/fixtures/volvo/details.json';
 import vehicles from '../backend/test/fixtures/volvo/vehicles.json';
 import doors from '../backend/test/fixtures/volvo/doors.json';
@@ -147,13 +149,32 @@ describe('parseCarState', () => {
 
 describe('parseCarProfile', () => {
 	it('reads model, year, paint and picture from vehicle details', () => {
-		expect(parseCarProfile(details, NOW)).toEqual({
+		expect(parseCarProfile(details, NOW)).toMatchObject({
 			model: 'XC40',
 			modelYear: 2023,
 			colour: 'Fjord Blue',
 			imageUrl: 'https://example.invalid/exterior.png',
+			commands: null,
 			fetchedAt: NOW,
 		});
+	});
+
+	it('lists every render angle and the interior, and the supported commands', () => {
+		const p = parseCarProfile(details, NOW, commands);
+		expect(p?.views?.map(v => v.view)).toEqual([
+			'front_left',
+			'front',
+			'front_right',
+			'side_right',
+			'back_right',
+			'back',
+			'back_left',
+			'side_left',
+			'interior',
+		]);
+		expect(p?.views?.[0].url).toBe('https://example.invalid/exterior.png?angle=4');
+		expect(p?.views?.at(-1)?.url).toBe('https://example.invalid/interior.png');
+		expect(p?.commands).toEqual(['LOCK', 'LOCK_REDUCED_GUARD', 'CLIMATIZATION_START', 'CLIMATIZATION_STOP']);
 	});
 
 	it('drops a picture that is not https, and returns null when nothing is known', () => {
@@ -165,6 +186,57 @@ describe('parseCarProfile', () => {
 		expect(p?.imageUrl).toBeNull();
 		expect(parseCarProfile({ data: {} }, NOW)).toBeNull();
 		expect(parseCarProfile(undefined, NOW)).toBeNull();
+	});
+});
+
+describe('carImageViews', () => {
+	it('replaces the angle parameter and keeps the transparent background', () => {
+		const v = carImageViews('https://cas.example/img.png?angle=1&bg=ffffff&w=1920', null);
+		expect(v.find(x => x.view === 'back')?.url).toBe('https://cas.example/img.png?angle=6&bg=00000000&w=1000');
+		expect(v).toHaveLength(8);
+	});
+
+	it('names the angle in the path on the wizz host, skipping angles it does not have', () => {
+		const v = carImageViews('https://wizz.example/car/abc/right/image.png', 'https://wizz.example/in.png');
+		expect(v.map(x => x.view)).toEqual([
+			'front_left',
+			'front',
+			'side_right',
+			'back',
+			'back_left',
+			'side_left',
+			'interior',
+		]);
+		expect(v.find(x => x.view === 'back')?.url).toBe('https://wizz.example/car/abc/rear/image.png');
+	});
+
+	it('returns nothing for missing or non-https pictures', () => {
+		expect(carImageViews(null, null)).toEqual([]);
+		expect(carImageViews('http://x/a.png', 'http://x/b.png')).toEqual([]);
+	});
+});
+
+describe('parseSupportedCommands', () => {
+	it('returns the command keys, or null when there is no list', () => {
+		expect(parseSupportedCommands({ data: [{ command: 'HONK' }, { command: 'HONK' }, {}] })).toEqual(['HONK']);
+		expect(parseSupportedCommands(undefined)).toBeNull();
+	});
+});
+
+describe('command accessibility', () => {
+	it('reads whether the car takes commands, with the reason when it does not', () => {
+		expect(parseCarState({ vehicles, accessibility }, NOW).access).toEqual({
+			value: { available: true, reason: null },
+			at: AT,
+		});
+		const off = {
+			data: { availabilityStatus: { value: 'UNAVAILABLE', unavailableReason: 'CAR_IN_SLEEP_MODE' } },
+		};
+		expect(parseCarState({ vehicles, accessibility: off }, NOW).access?.value).toEqual({
+			available: false,
+			reason: 'CAR_IN_SLEEP_MODE',
+		});
+		expect(parseCarState({ vehicles }, NOW).access).toBeNull();
 	});
 });
 

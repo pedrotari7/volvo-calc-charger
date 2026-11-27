@@ -76,7 +76,10 @@ describe('CarPage', () => {
 			'href',
 			expect.stringContaining('ll=59.31,18.16')
 		);
-		expect(screen.getByRole('img')).toHaveAttribute('src', 'https://tile.openstreetmap.org/16/36073/19280.png');
+		expect(screen.getByRole('img', { name: /map of the car/i })).toHaveAttribute(
+			'src',
+			'https://tile.openstreetmap.org/16/36073/19280.png'
+		);
 		expect(screen.getByRole('link', { name: '© OpenStreetMap contributors' })).toBeInTheDocument();
 	});
 
@@ -111,5 +114,38 @@ describe('CarPage', () => {
 		useDoc.mockReturnValue({ data: null, loading: false, error: new Error('x') });
 		render(<CarPage />);
 		expect(screen.getByRole('alert')).toHaveTextContent("Couldn't load the car");
+	});
+
+	it('draws the car from above with what is open', () => {
+		render(<CarPage />);
+		const diagram = screen.getByRole('img', { name: /car from above/i });
+		expect(diagram.getAttribute('aria-label')).toMatch(/open: Rear left window/);
+		expect(screen.getByText('Rear left window open')).toBeInTheDocument();
+	});
+
+	it('shows every picture Volvo has of the car, dropping ones that fail', async () => {
+		const profile = {
+			model: 'XC40',
+			modelYear: 2023,
+			colour: null,
+			imageUrl: 'https://cas.example/a.png?angle=1',
+			views: [
+				{ view: 'front', url: 'https://cas.example/a.png?angle=3' },
+				{ view: 'interior', url: 'https://cas.example/in.png' },
+			],
+			commands: null,
+			fetchedAt: at,
+		};
+		useDoc.mockImplementation((p: string) => ({
+			data: p === 'car/profile' ? profile : car,
+			loading: false,
+			error: null,
+		}));
+		const { fireEvent } = await import('@testing-library/react');
+		render(<CarPage />);
+		const gallery = screen.getByRole('group', { name: 'Pictures of the car' });
+		expect(within(gallery).getByAltText('Volvo XC40, front')).toBeInTheDocument();
+		fireEvent.error(within(gallery).getByAltText('Volvo XC40, interior'));
+		expect(within(gallery).queryByAltText('Volvo XC40, interior')).toBeNull();
 	});
 });
